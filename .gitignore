@@ -64,3 +64,6 @@ Thumbs.db
 
 # Phase reports (kept locally, not versioned)
 docs/reports/
+
+# Playwright
+/playwright/.auth/

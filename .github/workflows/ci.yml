@@ -43,9 +43,9 @@ jobs:
         run: npm run build
 
   database:
-    name: Database migrations, RLS and pgTAP tests
+    name: Database, integration and E2E tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
@@ -57,12 +57,13 @@ jobs:
       - name: Install dependencies (includes the Supabase CLI)
         run: npm ci
 
-      # Only Postgres is needed: migrations + seed are applied on start.
-      # The CI database is ephemeral and uses Supabase's public local defaults.
-      - name: Start local Supabase (database only)
+      # Postgres + Auth + REST API + Mailpit: what the app and tests need.
+      # Migrations + seed are applied on start. The CI stack is ephemeral and
+      # uses Supabase's public local defaults (no secrets).
+      - name: Start local Supabase
         run: >
           npx supabase start
-          -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+          -x realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
 
       - name: Drizzle migrations are consistent
         run: npm run db:check
@@ -81,6 +82,25 @@ jobs:
 
       - name: Lint SQL functions
         run: npm run db:lint
+
+      - name: Integration tests (demo users through the app services)
+        run: npm run test:integration
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E tests (signup, onboarding, invitations, roles)
+        run: npm run test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
 
       - name: Stop Supabase
         if: always()
