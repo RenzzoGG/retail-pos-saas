@@ -8,7 +8,15 @@ import { type FormState, initialFormState } from "@/lib/forms/state";
 import { listTimeZones } from "@/lib/timezone";
 import { CURRENCIES } from "../schemas";
 
-type Defaults = { name: string; currency: string; taxRatePercent: string; pricesIncludeTax: boolean; timezone: string };
+type Defaults = {
+  name: string;
+  currency: string;
+  taxRatePercent: string;
+  pricesIncludeTax: boolean;
+  timezone: string;
+  /** Only in Settings (not shown during onboarding). */
+  cashierDiscountLimit?: string;
+};
 
 type Props = {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
@@ -57,6 +65,16 @@ export function StoreSettingsForm({ action, defaults, submitLabel, pendingText }
         options={listTimeZones().map((z) => ({ value: z, label: z.replaceAll("_", " ") }))}
         errors={state.fieldErrors?.timezone}
       />
+      {defaults.cashierDiscountLimit !== undefined ? (
+        <TextField
+          name="cashierDiscountLimit"
+          label="Cashier discount limit (%)"
+          inputMode="decimal"
+          hint="Most a cashier can discount on a sale, as a % of its amount. Owners and admins have no limit."
+          defaultValue={v?.cashierDiscountLimit ?? defaults.cashierDiscountLimit}
+          errors={state.fieldErrors?.cashierDiscountLimit}
+        />
+      ) : null}
       <CheckboxField
         name="pricesIncludeTax"
         label="Prices include tax"

@@ -15,7 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { storeSettingsSchema } from "./schemas";
 import { createStore, updateStoreSettings } from "./service";
 
-const FIELDS = ["name", "currency", "taxRatePercent", "pricesIncludeTax", "timezone"];
+const FIELDS = ["name", "currency", "taxRatePercent", "pricesIncludeTax", "timezone", "cashierDiscountLimit"];
 
 export async function createStoreAction(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireUser();

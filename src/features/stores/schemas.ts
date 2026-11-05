@@ -20,6 +20,16 @@ export const storeSettingsSchema = z
       .max(99.99, "Tax must be below 100%.")
       .refine((v) => Math.round(v * 100) === v * 100, "Use at most 2 decimals."),
     pricesIncludeTax: checkbox,
+    /** Settings only (onboarding keeps the default 10 %). */
+    cashierDiscountLimit: z.preprocess(
+      (v) => (v === undefined || v === null || v === "" ? undefined : v),
+      z.coerce
+        .number({ error: "Enter a percentage, like 10." })
+        .min(0, "Can't be negative.")
+        .max(100, "Can't be more than 100%.")
+        .refine((v) => Math.round(v * 100) === v * 100, "Use at most 2 decimals.")
+        .optional(),
+    ),
     timezone: z
       .string()
       .trim()

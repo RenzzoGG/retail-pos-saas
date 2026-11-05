@@ -9,6 +9,7 @@ export type StoreSettings = {
   taxRate: number;
   pricesIncludeTax: boolean;
   timezone: string;
+  maxCashierDiscountPct: number;
 };
 
 /** Creates the store and makes the current user its owner (one atomic SQL call). */
@@ -27,7 +28,7 @@ export async function createStore(db: Db, input: StoreSettingsInput): Promise<Re
 export async function getStoreSettings(db: Db, storeId: string): Promise<Result<StoreSettings>> {
   const { data, error } = await db
     .from("stores")
-    .select("id, name, currency, tax_rate, prices_include_tax, timezone")
+    .select("id, name, currency, tax_rate, prices_include_tax, timezone, max_cashier_discount_pct")
     .eq("id", storeId)
     .maybeSingle();
   if (error || !data) return fail(error, "Store not found.");
@@ -38,6 +39,7 @@ export async function getStoreSettings(db: Db, storeId: string): Promise<Result<
     taxRate: Number(data.tax_rate),
     pricesIncludeTax: data.prices_include_tax,
     timezone: data.timezone,
+    maxCashierDiscountPct: Number(data.max_cashier_discount_pct),
   });
 }
 
@@ -56,6 +58,7 @@ export async function updateStoreSettings(
       tax_rate: input.taxRate,
       prices_include_tax: input.pricesIncludeTax,
       timezone: input.timezone,
+      ...(input.cashierDiscountLimit === undefined ? {} : { max_cashier_discount_pct: input.cashierDiscountLimit }),
     })
     .eq("id", actor.storeId)
     .select("id");

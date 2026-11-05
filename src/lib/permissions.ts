@@ -50,7 +50,8 @@ const MANAGERS: readonly StoreRole[] = ["owner", "admin"];
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/app", label: "Dashboard", roles: ALL },
-  { href: "/app/pos", label: "Sales / POS", roles: ALL },
+  { href: "/app/pos", label: "POS", roles: ALL },
+  { href: "/app/sales", label: "Sales", roles: ALL },
   { href: "/app/products", label: "Products", roles: ALL },
   { href: "/app/customers", label: "Customers", roles: ALL },
   { href: "/app/reports", label: "Reports", roles: MANAGERS },

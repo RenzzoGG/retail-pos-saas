@@ -11,6 +11,7 @@ const settings = {
   taxRate: 0.0825,
   pricesIncludeTax: true,
   timezone: "America/New_York",
+  cashierDiscountLimit: 10,
 };
 
 describe("cashier (through the app services and directly against the API)", () => {

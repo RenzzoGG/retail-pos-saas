@@ -1,10 +1,26 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/app/page-header";
-import { requireStoreContext } from "@/lib/auth/dal";
+import { PageHeader } from "@/components/app/page-header";
+import { PosTerminal } from "@/features/pos/components/pos-terminal";
+import { getActiveStore } from "@/features/stores/queries";
+import { isManager } from "@/lib/permissions";
 
-export const metadata: Metadata = { title: "Sales / POS · Stocktill" };
+export const metadata: Metadata = { title: "POS · Stocktill" };
 
 export default async function PosPage() {
-  await requireStoreContext();
-  return <ComingSoon title="Sales / POS" phase="phase 6" />;
+  const { store, settings } = await getActiveStore();
+  return (
+    <>
+      <PageHeader
+        title="Point of sale"
+        description={`${store.storeName} · prices in ${settings.currency}${settings.pricesIncludeTax ? " (tax included)" : ""}`}
+      />
+      <PosTerminal
+        storeId={store.storeId}
+        currency={settings.currency}
+        taxRate={settings.taxRate}
+        pricesIncludeTax={settings.pricesIncludeTax}
+        discountLimitPct={isManager(store.role) ? null : settings.maxCashierDiscountPct}
+      />
+    </>
+  );
 }

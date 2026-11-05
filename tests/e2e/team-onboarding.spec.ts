@@ -77,7 +77,7 @@ test("owner onboards, invites a cashier who accepts, then promotes them", async 
   await expect(memberPage).toHaveURL(/\/app$/);
   await expect(memberPage.getByTestId("current-role")).toHaveText("Your role: Cashier");
   const memberNav = memberPage.getByRole("navigation", { name: "Main" });
-  await expect(memberNav.getByRole("link", { name: "Sales / POS" })).toBeVisible();
+  await expect(memberNav.getByRole("link", { name: "POS" })).toBeVisible();
   await expect(memberNav.getByRole("link", { name: "Team" })).toHaveCount(0);
   await expect(memberNav.getByRole("link", { name: "Settings" })).toHaveCount(0);
 
