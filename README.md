@@ -70,6 +70,16 @@ Stop everything with `npm run docker:down` and `npm run supabase:stop`.
 | `db:types` | Regenerate `src/lib/supabase/database.types.ts` from the local database |
 | `docker:dev` / `docker:down` | App in Docker Compose (dev mode) |
 
+### Sample import files
+
+`docs/samples/` has files to try **Products → Import** (owner/admin):
+
+- `products-import-sample.xlsx` / `.csv`: 10 new products, 2 rows that update demo products (turn on
+  “Update existing products”) and 8 rows with errors, to see the preview and the error report.
+- `products-600.csv`: 600 valid products with opening stock.
+
+Regenerate them with `node scripts/generate-import-samples.mjs`.
+
 ### First-time Playwright setup
 
 ```bash

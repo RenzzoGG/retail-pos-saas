@@ -78,14 +78,16 @@ zona horaria por tienda.
 - [x] Pruebas: pgTAP (`010_inventory`), unitarias, integración y E2E (escaneo simulado).
 - [x] Jobs de CI pasan en GitHub.
 
-## Fase 5 — Importación desde Excel
-**Objetivos:** subir `.xlsx`, plantilla descargable, vista previa con validación por fila, reporte de
-errores, confirmación que guarda todo en una transacción.
+## Fase 5 — Importación desde Excel ✅ terminada
+**Objetivos:** subir `.xlsx`/`.csv`, plantilla descargable, vista previa con validación por fila y columna,
+reporte de errores, confirmación que guarda todo en una transacción, stock inicial como entrada de
+mercancía, historial de importaciones. Decisión: actualizar existentes se elige en cada importación.
 **Terminado cuando:**
-- [ ] Vista previa muestra filas válidas/erróneas con motivo (SKU duplicado, precio inválido, etc.).
-- [ ] Nada se guarda hasta confirmar; si falla, no se guarda nada.
-- [ ] Reporte de errores descargable.
-- [ ] Pruebas unitarias del parser/validador y límite de tamaño/filas.
+- [x] Vista previa muestra filas válidas/erróneas/actualizaciones con motivo por fila y columna.
+- [x] Nada se guarda hasta confirmar; si falla, no se guarda nada (función `import_products` atómica).
+- [x] Reporte de errores descargable (CSV, protegido contra inyección de fórmulas).
+- [x] Pruebas: pgTAP (`011_import`), unitarias del parser/validador y límites, integración (incluye 600
+      productos) y E2E (plantilla, vista previa, reporte, confirmación).
 
 ## Fase 6 — Punto de venta
 **Objetivos:** pantalla de venta rápida, búsqueda y escaneo con lector USB, carrito, descuentos por

@@ -442,6 +442,54 @@ inmutable y debe sobrevivir aunque se borre la tienda o el usuario.
   ("Product “X” updated: sale price 9.99 → 12.50"), ocultando campos internos. Actor desconocido =
   "Former member"; sin actor = "System".
 
+## 4c. Importación de productos desde Excel/CSV (implementado en la Fase 5)
+
+**Ruta:** `/app/products/import` (owner/admin; pestaña "Import"). Plantillas en
+`/app/products/import/template?format=xlsx|csv`. Ejemplos en `docs/samples/` (se regeneran con
+`node scripts/generate-import-samples.mjs`).
+
+### Librería: SheetJS CE 0.20.3, vendorizada
+- El paquete `xlsx` del registro de npm quedó en 0.18.5 (vulnerabilidades conocidas: prototype pollution y
+  ReDoS, corregidas en 0.19.3 y 0.20.2). SheetJS publica las versiones actuales solo en su CDN.
+- npm 12 rechaza por defecto dependencias de URLs remotas (`allow-remote`), así que el tarball oficial se
+  guardó en `vendor/xlsx-0.20.3.tgz` (verificado: Apache-2.0, sin dependencias, sin scripts de instalación) y
+  se instala como `file:`. `package-lock.json` fija su `sha512`; CI y Docker no dependen del CDN.
+- Una sola librería lee `.xlsx`/`.csv` y escribe la plantilla.
+
+### El archivo es dato no confiable
+| Defensa | Detalle |
+|---|---|
+| Tamaño | Máx. **1 MB** (`bodySizeLimit` de Server Actions subido a 2 MB para el envío) |
+| Filas | Máx. **2.000** productos (también lo exige `import_products`) |
+| Tipo | Extensión + firma (`.xlsx` debe ser ZIP; `.csv` texto sin bytes NUL) |
+| Zip bomb | Antes de parsear un `.xlsx` se lee el directorio central del ZIP: tamaño descomprimido declarado ≤ 20 MB, ≤ 200 entradas, sin ZIP64 |
+| Parser | Solo la primera hoja, `sheetRows` acotado, sin fórmulas/estilos/HTML/VBA; CSV con `raw` (no convierte "0012" en 12) |
+| Persistencia | El archivo se procesa en memoria y no se guarda |
+| SKU | Debe empezar con letra o dígito, sin espacios (`CHECK products_sku_format`): nunca parece una fórmula |
+| Reporte CSV | Celdas que empiezan con `= + - @` se prefijan con `'` (inyección de fórmulas) |
+
+### Flujo
+1. **Vista previa** (`previewImportAction`): parsea, mapea encabezados (cualquier orden, sin importar
+   mayúsculas, con alias), interpreta números "raros" (`$1,234.50`, `1.234,50`, `12,5`) y valida cada fila
+   y columna: obligatorios, precio ≥ 0 con 2 decimales, enteros ≥ 0, costo obligatorio con stock (y no
+   permitido sin stock: el costo solo viene de entradas), duplicados de SKU/código dentro del archivo y
+   contra la tienda. Carga solo los productos existentes con esos SKU/códigos (en lotes). No guarda nada.
+2. **Existentes:** casilla "Update existing products" por importación (decisión del usuario). Apagada → un
+   SKU existente es error. Encendida → actualiza nombre, código, categoría, precio y umbral; **una celda
+   opcional vacía conserva el valor actual** (un archivo corto no borra datos) y el stock se **suma**.
+3. **Confirmación** (`confirmImportAction`): el navegador reenvía el mismo `File`; el servidor comprueba
+   su SHA-256 contra el de la vista previa, **revalida contra la BD actual** y llama
+   `public.import_products` con las filas válidas.
+4. **`import_products`** (definer, una transacción): owner/admin, ≤ 2.000 filas, revalida cada fila, crea
+   o actualiza por SKU, junta el stock inicial en **una entrada de mercancía** `source = 'import'` vía
+   `app.receive_stock` (la misma lógica de `create_stock_entry`: promedio ponderado y libro de
+   movimientos) e inserta `import_batches` (archivo, quién, creadas/actualizadas/omitidas). Si algo falla,
+   no se guarda nada.
+5. **Reporte de errores:** CSV generado en el navegador con las filas rechazadas, sus valores y motivos.
+
+`import_batches`: lectura solo owner/admin; sin escritura desde la API; su trigger escribe en el historial
+("Product import “archivo” created — created: N, updated: N, skipped: N").
+
 ## 5. Estructura de carpetas (propuesta)
 
 ```
