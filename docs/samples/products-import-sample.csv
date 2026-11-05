@@ -1,0 +1,21 @@
+﻿Name,SKU,Barcode,Category,Sale price,Low stock threshold,Initial stock,Unit cost
+Braided USB-C Cable 3 m,SMP-CBL-USBC-3M,2900000000011,Cables,18.99,5,25,6.4
+USB-A to USB-C Adapter,SMP-ADP-A2C,2900000000028,Adapters,6.99,10,60,1.75
+Magnetic Phone Mount,SMP-MNT-MAG,2900000000035,Car,21.5,4,12,8.1
+Laptop Stand Aluminium,SMP-STD-LAP,2900000000042,Computer,39.99,3,8,16
+Webcam 1080p,SMP-CAM-1080,2900000000059,Computer,49.99,2,6,22.5
+Smart Plug Wi-Fi,SMP-PLG-WIFI,2900000000066,Smart Home,14.99,6,30,5.2
+LED Desk Lamp,SMP-LMP-LED,2900000000073,Lighting,27.99,3,,
+Gaming Mouse Pad XL,SMP-PAD-XL,2900000000080,Computer,$12.50,5,20,"4,10"
+Screen Cleaning Kit,SMP-CLN-KIT,,Accessories,7.99,,40,1.9
+Bluetooth Tracker Tag,SMP-TRK-TAG,2900000000097,Accessories,24.99,4,15,9.75
+USB-C to USB-C Cable 1 m,CBL-USBC-1M,2000000000015,Cables,10.99,10,20,3.5
+"Power Bank 20,000 mAh",PWB-20K,,,47.99,,10,21
+,SMP-ERR-NONAME,,Cables,5,,,
+Negative Price Cable,SMP-ERR-NEG,,Cables,-3,,,
+Duplicate SKU A,SMP-ERR-DUP,,Cables,4,,,
+Duplicate SKU B,SMP-ERR-DUP,,Cables,4,,,
+Taken Barcode Cable,SMP-ERR-BARCODE,2000000000022,Cables,8,,,
+Stock Without Cost,SMP-ERR-NOCOST,,Cables,8,,5,
+Half Unit Stock,SMP-ERR-HALF,,Cables,8,,2.5,1
+Formula Name,=1+1,,Cables,8,,,
