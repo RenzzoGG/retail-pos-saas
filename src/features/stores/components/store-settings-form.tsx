@@ -5,9 +5,10 @@ import { FormMessage } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/button";
 import { CheckboxField, SelectField, TextField } from "@/components/ui/field";
 import { type FormState, initialFormState } from "@/lib/forms/state";
+import { listTimeZones } from "@/lib/timezone";
 import { CURRENCIES } from "../schemas";
 
-type Defaults = { name: string; currency: string; taxRatePercent: string; pricesIncludeTax: boolean };
+type Defaults = { name: string; currency: string; taxRatePercent: string; pricesIncludeTax: boolean; timezone: string };
 
 type Props = {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
@@ -47,6 +48,14 @@ export function StoreSettingsForm({ action, defaults, submitLabel, pendingText }
         hint="For example 8.25. Use 0 if you don't charge sales tax."
         defaultValue={v?.taxRatePercent ?? defaults.taxRatePercent}
         errors={state.fieldErrors?.taxRatePercent}
+      />
+      <SelectField
+        name="timezone"
+        label="Time zone"
+        hint="Used for dates, filters and daily reports."
+        defaultValue={v?.timezone ?? defaults.timezone}
+        options={listTimeZones().map((z) => ({ value: z, label: z.replaceAll("_", " ") }))}
+        errors={state.fieldErrors?.timezone}
       />
       <CheckboxField
         name="pricesIncludeTax"

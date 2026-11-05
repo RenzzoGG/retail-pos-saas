@@ -25,6 +25,7 @@ export default async function SettingsPage() {
               currency: settings.data.currency,
               taxRatePercent: String(Math.round(settings.data.taxRate * 10000) / 100),
               pricesIncludeTax: settings.data.pricesIncludeTax,
+              timezone: settings.data.timezone,
             }}
             submitLabel="Save settings"
             pendingText="Saving…"

@@ -8,6 +8,7 @@ export type StoreSettings = {
   currency: string;
   taxRate: number;
   pricesIncludeTax: boolean;
+  timezone: string;
 };
 
 /** Creates the store and makes the current user its owner (one atomic SQL call). */
@@ -17,6 +18,7 @@ export async function createStore(db: Db, input: StoreSettingsInput): Promise<Re
     p_currency: input.currency,
     p_tax_rate: input.taxRate,
     p_prices_include_tax: input.pricesIncludeTax,
+    p_timezone: input.timezone,
   });
   if (error || !data) return fail(error);
   return ok(data);
@@ -25,7 +27,7 @@ export async function createStore(db: Db, input: StoreSettingsInput): Promise<Re
 export async function getStoreSettings(db: Db, storeId: string): Promise<Result<StoreSettings>> {
   const { data, error } = await db
     .from("stores")
-    .select("id, name, currency, tax_rate, prices_include_tax")
+    .select("id, name, currency, tax_rate, prices_include_tax, timezone")
     .eq("id", storeId)
     .maybeSingle();
   if (error || !data) return fail(error, "Store not found.");
@@ -35,6 +37,7 @@ export async function getStoreSettings(db: Db, storeId: string): Promise<Result<
     currency: data.currency,
     taxRate: Number(data.tax_rate),
     pricesIncludeTax: data.prices_include_tax,
+    timezone: data.timezone,
   });
 }
 
@@ -52,6 +55,7 @@ export async function updateStoreSettings(
       currency: input.currency,
       tax_rate: input.taxRate,
       prices_include_tax: input.pricesIncludeTax,
+      timezone: input.timezone,
     })
     .eq("id", actor.storeId)
     .select("id");

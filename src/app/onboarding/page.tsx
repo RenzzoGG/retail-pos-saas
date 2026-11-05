@@ -42,7 +42,7 @@ async function OnboardingContent() {
       )}
       <StoreSettingsForm
         action={createStoreAction}
-        defaults={{ name: "", currency: "USD", taxRatePercent: "0", pricesIncludeTax: true }}
+        defaults={{ name: "", currency: "USD", taxRatePercent: "0", pricesIncludeTax: true, timezone: "UTC" }}
         submitLabel="Create store"
         pendingText="Creating store…"
       />

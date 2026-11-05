@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidTimeZone } from "@/lib/timezone";
 
 export const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "MXN", "PEN", "COP", "CLP", "ARS", "BRL", "JPY"] as const;
 
@@ -19,6 +20,11 @@ export const storeSettingsSchema = z
       .max(99.99, "Tax must be below 100%.")
       .refine((v) => Math.round(v * 100) === v * 100, "Use at most 2 decimals."),
     pricesIncludeTax: checkbox,
+    timezone: z
+      .string()
+      .trim()
+      .min(1, "Choose a time zone.")
+      .refine(isValidTimeZone, "Choose a valid time zone."),
   })
   .transform(({ taxRatePercent, ...rest }) => ({
     ...rest,
