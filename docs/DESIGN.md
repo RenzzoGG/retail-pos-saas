@@ -50,6 +50,16 @@ función SQL que hace todo en una sola transacción.
 (Postgres, GoTrue, PostgREST, Storage, Studio...) con versiones probadas entre sí; replicarlo a mano en
 Compose es frágil. **Decidido:** Compose se usa solo para la app.
 
+**Cómo habla el contenedor de la app con Supabase local (Fase 1):** el CLI publica los puertos de
+Supabase en el host (API `54321`, Postgres `54322`). Dentro del contenedor, `127.0.0.1` es el propio
+contenedor, así que `compose.yaml` añade `extra_hosts: host.docker.internal:host-gateway` y define
+`SUPABASE_INTERNAL_URL=http://host.docker.internal:54321` para el **servidor** de Next.js. El
+**navegador** sigue usando `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321`. Como `@supabase/ssr`
+nombra la cookie de sesión según el hostname de la URL, ambos clientes usan un nombre fijo
+(`sb-stocktill-auth-token`) para que la sesión coincida. Se descartó unir el contenedor a la red
+interna del CLI (`supabase_network_<project_id>`, depende de nombres internos y solo existe tras
+`supabase start`) y `network_mode: host` (menos portable y anula el mapeo de puertos).
+
 ### Acceso a datos — decidido
 - **Drizzle** define el esquema en TypeScript y genera las migraciones SQL. RLS, funciones y triggers
   se escriben como SQL en migraciones personalizadas (Drizzle permite migraciones "custom").

@@ -16,18 +16,19 @@ pruebas y despliegue; acordar reglas de trabajo.
 - [x] 5 nombres de marca propuestos → elegido **Stocktill**.
 - [x] Commit local y REPORTE entregado; preguntas respondidas y decisiones registradas en `CLAUDE.md`.
 
-## Fase 1 — Base del proyecto
-**Objetivos:** Next.js (App Router, TS, Tailwind) con **npm**, ESLint/Prettier, Docker Compose solo para
+## Fase 1 — Base del proyecto ✅ terminada (falta solo el primer run de CI en GitHub, tras el push)
+**Objetivos:** Next.js (App Router, TS estricto, Tailwind) con **npm**, ESLint, Docker Compose solo para
 la app, Supabase CLI local (devDependency), Drizzle configurado (solo esquema/migraciones), clientes
 supabase-js, Vitest, CI básico en GitHub Actions, `.env.example`, archivo `LICENSE` (MIT).
-UI en inglés desde el inicio.
+UI en inglés desde el inicio. (Prettier no se incluyó; se puede añadir si se desea.)
 **Terminado cuando:**
-- [ ] `LICENSE` MIT presente.
-- [ ] `npm run dev` y `docker compose up` sirven la app en `localhost:3000`.
-- [ ] `npx supabase start` levanta Supabase local y la app se conecta (página de salud).
-- [ ] `drizzle-kit generate` produce una migración en `supabase/migrations`.
-- [ ] `npm run lint`, `npm run typecheck` y `npm test` pasan en local y en CI.
-- [ ] `.env.example` documenta todas las variables (sin valores reales).
+- [x] `LICENSE` MIT presente.
+- [x] `npm run dev` y `docker compose up` sirven la app y `/api/health` en `localhost:3000`.
+- [x] `npx supabase start` levanta Supabase local y el contenedor de la app alcanza su API.
+- [x] `drizzle-kit generate` funciona contra `supabase/migrations` (sin cambios: aún no hay tablas).
+- [x] `npm run lint`, `npm run typecheck`, `npm test` y `npm run build` pasan en local y en un clon limpio.
+- [ ] El workflow de CI pasa en GitHub (se verá tras el primer push del usuario).
+- [x] `.env.example` documenta todas las variables (sin valores reales).
 
 ## Fase 2 — Base de datos, migraciones, RLS y seeds
 **Objetivos:** esquema completo de `docs/DESIGN.md`, RLS en todas las tablas, funciones auxiliares de

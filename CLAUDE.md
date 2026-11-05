@@ -61,6 +61,8 @@ Documentación clave:
 ## Convenciones
 - Documentación y comunicación en español; **interfaz de usuario en inglés**; código, nombres de tablas y commits en inglés.
 - Gestor de paquetes: npm (`npm ci` en CI y Docker).
+- Next.js 16 tiene cambios incompatibles con versiones anteriores: antes de escribir código de Next, consultar `node_modules/next/dist/docs/` (ver `AGENTS.md`).
+- Verificación mínima antes de cada commit: `npm run lint && npm run typecheck && npm test && npm run build`.
 - Commits con Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `test:`...).
 - Los permisos se validan en el servidor **y** en la base de datos (RLS/funciones), nunca solo en la UI.
 - El stock solo cambia mediante ventas, devoluciones y entradas de mercancía (funciones de BD).
