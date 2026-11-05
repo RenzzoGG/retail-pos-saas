@@ -96,12 +96,15 @@ export const stockEntries = pgTable(
       .references(() => stores.id, { onDelete: "cascade" }),
     supplier: text("supplier"),
     note: text("note"),
+    /** "manual" (Receive stock screen) or "import" (product import). */
+    source: text("source").notNull().default("manual"),
     createdBy: uuid("created_by").references(() => authUsers.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
   (t) => [
     unique("stock_entries_id_store_id_key").on(t.id, t.storeId),
     index("stock_entries_store_created_idx").on(t.storeId, t.createdAt),
+    check("stock_entries_source_valid", sql`${t.source} in ('manual', 'import')`),
   ],
 );
 
@@ -163,5 +166,40 @@ export const stockMovements = pgTable(
       "stock_movements_sign_matches_type",
       sql`(${t.type} = 'sale' and ${t.quantity} < 0) or (${t.type} in ('return', 'entry') and ${t.quantity} > 0)`,
     ),
+  ],
+);
+
+/** One row per confirmed product import (written only by public.import_products). */
+export const importBatches = pgTable(
+  "import_batches",
+  {
+    id: id(),
+    storeId: uuid("store_id")
+      .notNull()
+      .references(() => stores.id, { onDelete: "cascade" }),
+    fileName: text("file_name").notNull(),
+    updateExisting: boolean("update_existing").notNull().default(false),
+    totalRows: integer("total_rows").notNull(),
+    createdCount: integer("created_count").notNull(),
+    updatedCount: integer("updated_count").notNull(),
+    skippedCount: integer("skipped_count").notNull(),
+    /** Stock entry created for the rows that brought initial stock (null if none). */
+    stockEntryId: uuid("stock_entry_id"),
+    createdBy: uuid("created_by").references(() => authUsers.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    foreignKey({
+      name: "import_batches_stock_entry_fk",
+      columns: [t.stockEntryId, t.storeId],
+      foreignColumns: [stockEntries.id, stockEntries.storeId],
+    }),
+    index("import_batches_store_created_idx").on(t.storeId, t.createdAt),
+    check(
+      "import_batches_counts_valid",
+      sql`${t.createdCount} >= 0 and ${t.updatedCount} >= 0 and ${t.skippedCount} >= 0
+          and ${t.createdCount} + ${t.updatedCount} + ${t.skippedCount} = ${t.totalRows}`,
+    ),
+    check("import_batches_file_name_not_blank", sql`length(trim(${t.fileName})) > 0`),
   ],
 );

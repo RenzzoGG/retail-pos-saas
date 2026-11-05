@@ -23,6 +23,7 @@ const ENTITIES: Record<string, string> = {
   stock_entries: "Stock entry",
   sales: "Sale",
   returns: "Return",
+  import_batches: "Product import",
 };
 
 /** Bookkeeping fields that are never shown as "changes". */
@@ -68,7 +69,7 @@ function show(value: unknown, field: string): string {
 
 function nameOf(row: Json | null): string | null {
   if (!row) return null;
-  for (const key of ["name", "email", "sku"]) {
+  for (const key of ["name", "email", "sku", "file_name"]) {
     if (typeof row[key] === "string" && row[key]) return row[key] as string;
   }
   if (typeof row.number === "number") return `#${row.number}`;
@@ -88,6 +89,11 @@ export function describeActivity(input: ActivityInput): ActivityDescription {
       if (row?.role) details.push(`role: ${String(row.role)}`);
     }
     if (input.tableName === "sales" && row?.total !== undefined) details.push(`total: ${show(row.total, "total")}`);
+    if (input.tableName === "import_batches" && row) {
+      details.push(
+        `created: ${String(row.created_count)}, updated: ${String(row.updated_count)}, skipped: ${String(row.skipped_count)}`,
+      );
+    }
     return { entity, title: `${subject} created`, details };
   }
 

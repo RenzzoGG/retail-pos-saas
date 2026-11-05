@@ -50,6 +50,20 @@
       "when": 1793863009720,
       "tag": "20261105071649_inventory",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793895800034,
+      "tag": "20261105162320_product_import_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793895801361,
+      "tag": "20261105162321_product_import",
+      "breakpoints": true
     }
   ]
 }

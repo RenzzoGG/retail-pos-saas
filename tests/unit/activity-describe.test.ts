@@ -44,6 +44,17 @@ describe("describeActivity", () => {
     });
   });
 
+  it("describes product imports with their counts", () => {
+    expect(
+      describeActivity({
+        tableName: "import_batches",
+        action: "insert",
+        before: null,
+        after: { file_name: "catalog.xlsx", created_count: 590, updated_count: 5, skipped_count: 5 },
+      }),
+    ).toEqual({ entity: "Product import", title: "Product import “catalog.xlsx” created", details: ["created: 590, updated: 5, skipped: 5"] });
+  });
+
   it("handles cost rows, sales and unknown tables", () => {
     expect(describeActivity({ tableName: "product_costs", action: "update", before: { cost_price: 3.2 }, after: { cost_price: 3.5 } }).details).toEqual([
       "cost: 3.20 → 3.50",

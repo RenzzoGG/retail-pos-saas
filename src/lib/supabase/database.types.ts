@@ -39,6 +39,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"import_batches": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"created_count": number,"file_name": string,"id": string,"skipped_count": number,"stock_entry_id": string | null,"store_id": string,"total_rows": number,"update_existing": boolean,"updated_count": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"created_count": number,"file_name": string,"id"?: string,"skipped_count": number,"stock_entry_id"?: string | null,"store_id": string,"total_rows": number,"update_existing"?: boolean,"updated_count": number
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"created_count"?: number,"file_name"?: string,"id"?: string,"skipped_count"?: number,"stock_entry_id"?: string | null,"store_id"?: string,"total_rows"?: number,"update_existing"?: boolean,"updated_count"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "import_batches_stock_entry_fk"
+      columns: ["stock_entry_id","store_id"]
+isOneToOne: false
+      referencedRelation: "stock_entries"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "import_batches_store_id_stores_id_fk"
+      columns: ["store_id"]
+isOneToOne: false
+      referencedRelation: "stores"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"invitations": {
                   Row: {
                     "accepted_at": string | null,"accepted_by": string | null,"created_at": string,"email": string,"expires_at": string,"id": string,"invited_by": string | null,"role": Database["public"]['Enums']["store_role"],"store_id": string,"token_hash": string
@@ -253,14 +279,14 @@ isOneToOne: false
                   ]
                 },"stock_entries": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"id": string,"note": string | null,"store_id": string,"supplier": string | null
+                    "created_at": string,"created_by": string | null,"id": string,"note": string | null,"source": string,"store_id": string,"supplier": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"note"?: string | null,"store_id": string,"supplier"?: string | null
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"note"?: string | null,"source"?: string,"store_id": string,"supplier"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"note"?: string | null,"store_id"?: string,"supplier"?: string | null
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"note"?: string | null,"source"?: string,"store_id"?: string,"supplier"?: string | null
                   }
                   Relationships: [
                     {
@@ -405,6 +431,9 @@ isOneToOne: true
                            },
 "create_store":
 { Args: { "p_currency"?: string,"p_name": string,"p_prices_include_tax"?: boolean,"p_tax_rate"?: number,"p_timezone"?: string }; Returns: string
+                           },
+"import_products":
+{ Args: { "p_file_name": string,"p_rows": Json,"p_skipped_rows": number,"p_store_id": string,"p_total_rows": number,"p_update_existing": boolean }; Returns: string
                            },
 "invitation_preview":
 { Args: { "p_token": string }; Returns: {
