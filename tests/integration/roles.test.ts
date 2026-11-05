@@ -5,7 +5,13 @@ import { hashInvitationToken } from "@/features/team/tokens";
 import type { Db } from "@/lib/services/result";
 import { DEMO_STORE_ID, USERS, actor, memberId, signInAs } from "./helpers";
 
-const settings = { name: "Stocktill Demo Electronics", currency: "USD", taxRate: 0.0825, pricesIncludeTax: true };
+const settings = {
+  name: "Stocktill Demo Electronics",
+  currency: "USD",
+  taxRate: 0.0825,
+  pricesIncludeTax: true,
+  timezone: "America/New_York",
+};
 
 describe("cashier (through the app services and directly against the API)", () => {
   let db: Db;

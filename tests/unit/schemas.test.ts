@@ -5,11 +5,17 @@ import { inviteSchema } from "@/features/team/schemas";
 
 describe("store settings schema", () => {
   it("converts a percentage into a rate and reads the checkbox", () => {
-    const parsed = storeSettingsSchema.parse({ name: " My Shop ", currency: "usd", taxRatePercent: "8.25", pricesIncludeTax: "on" });
-    expect(parsed).toEqual({ name: "My Shop", currency: "USD", taxRate: 0.0825, pricesIncludeTax: true });
+    const parsed = storeSettingsSchema.parse({
+      name: " My Shop ",
+      currency: "usd",
+      taxRatePercent: "8.25",
+      pricesIncludeTax: "on",
+      timezone: "America/Lima",
+    });
+    expect(parsed).toEqual({ name: "My Shop", currency: "USD", taxRate: 0.0825, pricesIncludeTax: true, timezone: "America/Lima" });
   });
   it("treats a missing checkbox as false", () => {
-    const parsed = storeSettingsSchema.parse({ name: "Shop", currency: "EUR", taxRatePercent: "21" });
+    const parsed = storeSettingsSchema.parse({ name: "Shop", currency: "EUR", taxRatePercent: "21", timezone: "UTC" });
     expect(parsed.pricesIncludeTax).toBe(false);
   });
   it("rejects invalid values", () => {
@@ -17,6 +23,9 @@ describe("store settings schema", () => {
     expect(storeSettingsSchema.safeParse({ name: "Shop", currency: "US", taxRatePercent: "5" }).success).toBe(false);
     expect(storeSettingsSchema.safeParse({ name: "Shop", currency: "USD", taxRatePercent: "100" }).success).toBe(false);
     expect(storeSettingsSchema.safeParse({ name: "Shop", currency: "USD", taxRatePercent: "8.255" }).success).toBe(false);
+    expect(
+      storeSettingsSchema.safeParse({ name: "Shop", currency: "USD", taxRatePercent: "5", timezone: "Mars/Olympus" }).success,
+    ).toBe(false);
   });
 });
 

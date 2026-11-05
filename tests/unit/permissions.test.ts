@@ -25,6 +25,7 @@ describe("role rules", () => {
     const labels = navForRole("cashier").map((i) => i.label);
     expect(labels).toEqual(["Dashboard", "Sales / POS", "Products", "Customers"]);
     expect(navForRole("admin").map((i) => i.label)).toContain("Team");
+    expect(navForRole("admin").map((i) => i.label)).toContain("Activity");
     expect(navForRole("owner").map((i) => i.label)).toContain("Settings");
   });
 });
