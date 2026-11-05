@@ -5,6 +5,7 @@ import {
   getServerSupabaseUrl,
   getSupabasePublishableKey,
 } from "@/lib/env";
+import type { Database } from "@/lib/supabase/database.types";
 
 /**
  * Supabase client for Server Components, Server Actions and Route Handlers.
@@ -14,7 +15,7 @@ import {
 export async function createClient() {
   const cookieStore = await cookies();
 
-  return createServerClient(getServerSupabaseUrl(), getSupabasePublishableKey(), {
+  return createServerClient<Database>(getServerSupabaseUrl(), getSupabasePublishableKey(), {
     cookieOptions: { name: SUPABASE_AUTH_COOKIE },
     cookies: {
       getAll() {

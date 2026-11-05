@@ -41,3 +41,47 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  database:
+    name: Database migrations, RLS and pgTAP tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies (includes the Supabase CLI)
+        run: npm ci
+
+      # Only Postgres is needed: migrations + seed are applied on start.
+      # The CI database is ephemeral and uses Supabase's public local defaults.
+      - name: Start local Supabase (database only)
+        run: >
+          npx supabase start
+          -x gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Drizzle migrations are consistent
+        run: npm run db:check
+
+      - name: No schema change without a migration
+        run: |
+          npm run db:generate
+          if [ -n "$(git status --porcelain supabase/migrations)" ]; then
+            echo "db/schema changed but no migration was committed. Run: npm run db:generate"
+            git status --porcelain supabase/migrations
+            exit 1
+          fi
+
+      - name: pgTAP tests (RLS, isolation, roles, stock, audit)
+        run: npm run test:db
+
+      - name: Lint SQL functions
+        run: npm run db:lint
+
+      - name: Stop Supabase
+        if: always()
+        run: npx supabase stop --no-backup
