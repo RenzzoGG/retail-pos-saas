@@ -54,6 +54,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/app/products", label: "Products", roles: ALL },
   { href: "/app/customers", label: "Customers", roles: ALL },
   { href: "/app/reports", label: "Reports", roles: MANAGERS },
+  { href: "/app/activity", label: "Activity", roles: MANAGERS },
   { href: "/app/team", label: "Team", roles: MANAGERS },
   { href: "/app/settings", label: "Settings", roles: MANAGERS },
 ];
