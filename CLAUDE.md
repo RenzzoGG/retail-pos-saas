@@ -67,3 +67,10 @@ Documentación clave:
 - Los permisos se validan en el servidor **y** en la base de datos (RLS/funciones), nunca solo en la UI.
 - El stock solo cambia mediante ventas, devoluciones y entradas de mercancía (funciones de BD).
 - Dinero como `numeric(12,2)` en la BD; nunca `float`.
+
+## Notas del entorno local
+- El proceso `next-server (v16.4.3)` que corre como root es **Supabase Studio** (contenedor
+  `supabase_studio_retail-pos-saas`, hecho con Next.js). No es ajeno: no reportarlo.
+- Si `npm run dev` entra en un bucle de recargas, la caché `.next` está corrupta: detener el servidor y
+  borrar `.next`.
+- Los usuarios demo del seed y su contraseña (solo local) están en el README.
