@@ -305,7 +305,17 @@ erDiagram
   privada y cada Server Action la llama; las páginas de managers responden **404** a otros roles (no
   revelan que existen). Debajo, RLS sigue siendo la garantía final.
 - Con `cacheComponents`, leer cookies fuera de `<Suspense>` es error de build: el layout privado
-  envuelve el contenido dependiente de la sesión en `<Suspense>` (estructura estática + streaming).
+  envuelve el contenido dependiente de la sesión en `<Suspense>` (estructura estática + streaming), y
+  cada sección de `/app` tiene un `loading.tsx` (su propio límite de Suspense) para que las navegaciones
+  muestren "Loading…" al instante.
+- `getSessionUser()` llama `await connection()` antes de verificar el JWT: supabase-js compara la
+  caducidad del token con la hora actual (`Date.now()`), y Next exige marcar ese trabajo como "solo en
+  tiempo de petición" para no intentar prerenderizarlo.
+- **Estado HTTP de las páginas prohibidas:** como el área privada se transmite por streaming, la
+  respuesta ya empezó con `200` cuando la DAL comprueba el rol dentro de `<Suspense>`; `notFound()`
+  muestra la pantalla 404 (con `noindex`) pero el código queda en 200 ("soft 404", comportamiento
+  documentado de Next 16). No se filtra contenido. Un 404 real exigiría consultar el rol en el Proxy
+  (una consulta a la BD en cada petición), que Next desaconseja.
 
 ### Tienda activa
 Cookie `stocktill_active_store` (`httpOnly`, `SameSite=Lax`, `Secure` en producción, 1 año). Solo
@@ -445,7 +455,7 @@ consultas y validaciones de cada módulo, y escala mejor que carpetas gigantes d
 | Unitarias | Vitest | Cálculo de totales/descuentos/impuestos (precios con impuesto incluido y sin incluir, redondeo), utilidades de dinero, esquemas Zod, parser y validador del Excel, buffer del lector de código de barras |
 | Base de datos | **pgTAP** (`npm run test:db` = `supabase test db`), en `supabase/tests/database/` | Estructura (RLS en todas las tablas, privilegios, `search_path` de funciones definer), **aislamiento** A/B en lectura/escritura/RPC, **roles**, **stock** (sin escritura directa, sin negativos, sin sobreventa, `stock = Σ movimientos`), funciones (impuestos, idempotencia, promedio ponderado, devoluciones), historial inmutable y tablas de Stripe |
 | Integración | Vitest (`npm run test:integration`) contra Supabase local | Inician sesión como los usuarios demo con la publishable key (leída en tiempo de ejecución de `supabase status`, nunca impresa) y llaman a las mismas *services* que las Server Actions: permisos por rol, invitación de ida y vuelta, entrega del correo en Mailpit |
-| E2E | **Playwright** (adelantado de la Fase 11, `npm run test:e2e`) | Chromium real contra `next dev`: registro → confirmación leyendo Mailpit → crear tienda → invitar → aceptar con otro usuario → cambiar rol; comprueba la navegación por rol y el 404 de páginas de managers |
+| E2E | **Playwright** (adelantado de la Fase 11, `npm run test:e2e`) | Chromium real contra el **build de producción standalone** (`npm run build && npm start`, igual que la imagen Docker): registro → confirmación leyendo Mailpit → crear tienda → invitar → aceptar con otro usuario → cambiar rol; comprueba la navegación por rol, la pantalla 404 de páginas de managers y el login con contraseña |
 | Concurrencia | Vitest + `postgres` contra Supabase local (Fase 6) | Dos ventas simultáneas del último artículo; reintentos con la misma clave de idempotencia |
 | Integración | Vitest | Server Actions con usuarios de prueba; webhook de Stripe con payloads firmados de prueba (`stripe.webhooks.generateTestHeaderString`) |
 | Navegador | Playwright | Registro + crear tienda, invitar cajero, venta con "lector" simulado (tecleo rápido + Enter), devolución, importación Excel, restricción de páginas por rol |

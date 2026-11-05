@@ -57,13 +57,13 @@ Stop everything with `npm run docker:down` and `npm run supabase:stop`.
 
 | Script | What it does |
 | --- | --- |
-| `dev` / `build` / `start` | Next.js dev server, production build, production server |
+| `dev` / `build` / `start` | Next.js dev server, production build, production server (`start` serves the standalone build, as the Docker image will) |
 | `lint` / `typecheck` / `test` | ESLint, TypeScript (`tsc --noEmit`), Vitest |
 | `supabase:start` / `supabase:stop` / `supabase:status` | Local Supabase stack |
 | `db:generate` / `db:check` | Generate / validate Drizzle migrations into `supabase/migrations` |
 | `db:migrate` / `db:reset` | Apply pending migrations / rebuild the local database and re-run the seed |
 | `test:integration` | Integration tests against local Supabase, signed in as the demo users |
-| `test:e2e` | Playwright E2E (Chromium): sign-up → store → invite → accept → change role |
+| `test:e2e` | Playwright E2E (Chromium) on the production build: sign-up → store → invite → accept → change role |
 | `dev:local` | `next dev` with the local Supabase public URL/key injected at runtime |
 | `test:db` | pgTAP database tests: RLS, tenant isolation, roles, stock, audit log |
 | `db:lint` | Lint SQL functions (`supabase db lint`) |
