@@ -16,7 +16,7 @@ pruebas y despliegue; acordar reglas de trabajo.
 - [x] 5 nombres de marca propuestos → elegido **Stocktill**.
 - [x] Commit local y REPORTE entregado; preguntas respondidas y decisiones registradas en `CLAUDE.md`.
 
-## Fase 1 — Base del proyecto ✅ terminada (falta solo el primer run de CI en GitHub, tras el push)
+## Fase 1 — Base del proyecto ✅ terminada
 **Objetivos:** Next.js (App Router, TS estricto, Tailwind) con **npm**, ESLint, Docker Compose solo para
 la app, Supabase CLI local (devDependency), Drizzle configurado (solo esquema/migraciones), clientes
 supabase-js, Vitest, CI básico en GitHub Actions, `.env.example`, archivo `LICENSE` (MIT).
@@ -27,10 +27,10 @@ UI en inglés desde el inicio. (Prettier no se incluyó; se puede añadir si se 
 - [x] `npx supabase start` levanta Supabase local y el contenedor de la app alcanza su API.
 - [x] `drizzle-kit generate` funciona contra `supabase/migrations` (sin cambios: aún no hay tablas).
 - [x] `npm run lint`, `npm run typecheck`, `npm test` y `npm run build` pasan en local y en un clon limpio.
-- [ ] El workflow de CI pasa en GitHub (pendiente: GitHub Actions bloqueado temporalmente en la cuenta).
+- [x] El workflow de CI pasa en GitHub.
 - [x] `.env.example` documenta todas las variables (sin valores reales).
 
-## Fase 2 — Base de datos, migraciones, RLS y seeds ✅ terminada (CI de GitHub pendiente: Actions bloqueado por facturación)
+## Fase 2 — Base de datos, migraciones, RLS y seeds ✅ terminada
 **Objetivos:** esquema completo de `docs/DESIGN.md`, RLS en todas las tablas, funciones auxiliares de
 membresía/rol, funciones de stock, historial de actividad, seeds con dos tiendas y usuarios de prueba,
 pruebas de aislamiento.
@@ -44,12 +44,12 @@ pruebas de aislamiento.
 - [x] Funciones `create_stock_entry`, `create_sale`, `create_return` definidas y probadas.
 - [x] Historial de actividad por triggers, inmutable (probado).
 - [x] Pruebas de BD en el CI (job `database`), verificado localmente con el mismo flujo.
-- [ ] El job `database` pasa en GitHub (cuando Actions vuelva a estar disponible).
+- [x] El job `database` pasa en GitHub.
 
 Quedan para otras fases: prueba de concurrencia real con dos conexiones (Fase 6), tabla
 `import_batches` (Fase 5), funciones `create_store` y `accept_invitation` (Fase 3).
 
-## Fase 3 — Autenticación, tiendas, roles e invitaciones ✅ terminada (CI de GitHub pendiente)
+## Fase 3 — Autenticación, tiendas, roles e invitaciones ✅ terminada
 **Objetivos:** registro/login con Supabase Auth (correo y contraseña, confirmación por correo,
 recuperación de contraseña), sesión con cookies (`@supabase/ssr`), Proxy + Data Access Layer,
 `create_store` y onboarding, selector de tienda activa, invitaciones por correo con `accept_invitation`,
@@ -63,9 +63,9 @@ Regla decidida: **solo el owner gestiona admins**; el admin solo invita, cambia 
 - [x] El Proxy refresca la sesión y protege el área privada.
 - [x] pgTAP de `create_store` y `accept_invitation` (vencida, otro correo, ya usada, rol no permitido).
 - [x] Playwright adelantado: prueba E2E del flujo completo en Chromium.
-- [ ] Jobs de CI pasan en GitHub (Actions bloqueado temporalmente en la cuenta).
+- [x] Jobs de CI pasan en GitHub.
 
-## Fase 4 — Inventario e historial de actividad ✅ terminada (CI de GitHub pendiente)
+## Fase 4 — Inventario e historial de actividad ✅ terminada (CI de GitHub: se verá tras el push)
 **Objetivos:** catálogo con búsqueda/filtros/orden/paginación en el servidor, CRUD de productos (borrado
 lógico), entradas de mercancía con escaneo vía `create_stock_entry`, movimientos por producto, alertas de
 stock bajo, historial de actividad con filtros. Decisiones: costo solo por entradas (promedio ponderado),
