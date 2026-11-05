@@ -34,6 +34,13 @@ export const products = pgTable(
     /** Only changed by create_sale / create_return / create_stock_entry. */
     stock: integer("stock").notNull().default(0),
     lowStockThreshold: integer("low_stock_threshold").notNull().default(0),
+    /**
+     * Generated: PostgREST filters cannot compare two columns, so "low stock"
+     * is materialized here for filtering and counting. Out of stock counts as low.
+     */
+    isLowStock: boolean("is_low_stock")
+      .notNull()
+      .generatedAlwaysAs(sql`stock <= low_stock_threshold`),
     active: boolean("active").notNull().default(true),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdBy: uuid("created_by").references(() => authUsers.id, { onDelete: "set null" }),
@@ -50,6 +57,7 @@ export const products = pgTable(
       .on(t.storeId, t.barcode)
       .where(sql`${t.deletedAt} is null and ${t.barcode} is not null`),
     index("products_store_name_idx").on(t.storeId, t.name),
+    index("products_store_low_stock_idx").on(t.storeId, t.isLowStock),
     check("products_stock_nonneg", sql`${t.stock} >= 0`),
     check("products_sale_price_nonneg", sql`${t.salePrice} >= 0`),
     check("products_low_stock_threshold_nonneg", sql`${t.lowStockThreshold} >= 0`),

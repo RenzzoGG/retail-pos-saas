@@ -27,6 +27,8 @@ export const stores = pgTable(
     /** e.g. 0.0825 = 8.25 %. */
     taxRate: numeric("tax_rate", { precision: 5, scale: 4 }).notNull().default("0"),
     pricesIncludeTax: boolean("prices_include_tax").notNull().default(true),
+    /** IANA time zone (e.g. America/New_York): dates, filters and daily reports use it. */
+    timezone: text("timezone").notNull().default("UTC"),
     ticketFooter: text("ticket_footer"),
     /** Per-store sale counter; only changed by public.create_sale(). */
     lastSaleNumber: integer("last_sale_number").notNull().default(0),

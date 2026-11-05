@@ -36,6 +36,20 @@
       "when": 1793848123047,
       "tag": "20261105030843_auth_team",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793862985121,
+      "tag": "20261105071625_inventory_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793863009720,
+      "tag": "20261105071649_inventory",
+      "breakpoints": true
     }
   ]
 }

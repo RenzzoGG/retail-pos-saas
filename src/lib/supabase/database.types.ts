@@ -81,14 +81,14 @@ isOneToOne: false
                   ]
                 },"products": {
                   Row: {
-                    "active": boolean,"barcode": string | null,"category": string | null,"created_at": string,"created_by": string | null,"deleted_at": string | null,"id": string,"low_stock_threshold": number,"name": string,"sale_price": number,"sku": string,"stock": number,"store_id": string,"updated_at": string
+                    "active": boolean,"barcode": string | null,"category": string | null,"created_at": string,"created_by": string | null,"deleted_at": string | null,"id": string,"is_low_stock": boolean,"low_stock_threshold": number,"name": string,"sale_price": number,"sku": string,"stock": number,"store_id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "active"?: boolean,"barcode"?: string | null,"category"?: string | null,"created_at"?: string,"created_by"?: string | null,"deleted_at"?: string | null,"id"?: string,"low_stock_threshold"?: number,"name": string,"sale_price": number,"sku": string,"stock"?: number,"store_id": string,"updated_at"?: string
+                    "active"?: boolean,"barcode"?: string | null,"category"?: string | null,"created_at"?: string,"created_by"?: string | null,"deleted_at"?: string | null,"id"?: string,"is_low_stock"?: never,"low_stock_threshold"?: number,"name": string,"sale_price": number,"sku": string,"stock"?: number,"store_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "active"?: boolean,"barcode"?: string | null,"category"?: string | null,"created_at"?: string,"created_by"?: string | null,"deleted_at"?: string | null,"id"?: string,"low_stock_threshold"?: number,"name"?: string,"sale_price"?: number,"sku"?: string,"stock"?: number,"store_id"?: string,"updated_at"?: string
+                    "active"?: boolean,"barcode"?: string | null,"category"?: string | null,"created_at"?: string,"created_by"?: string | null,"deleted_at"?: string | null,"id"?: string,"is_low_stock"?: never,"low_stock_threshold"?: number,"name"?: string,"sale_price"?: number,"sku"?: string,"stock"?: number,"store_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -339,14 +339,14 @@ isOneToOne: false
                   ]
                 },"stores": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"currency": string,"id": string,"last_sale_number": number,"name": string,"prices_include_tax": boolean,"slug": string,"tax_rate": number,"ticket_footer": string | null,"updated_at": string
+                    "created_at": string,"created_by": string | null,"currency": string,"id": string,"last_sale_number": number,"name": string,"prices_include_tax": boolean,"slug": string,"tax_rate": number,"ticket_footer": string | null,"timezone": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"id"?: string,"last_sale_number"?: number,"name": string,"prices_include_tax"?: boolean,"slug": string,"tax_rate"?: number,"ticket_footer"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"id"?: string,"last_sale_number"?: number,"name": string,"prices_include_tax"?: boolean,"slug": string,"tax_rate"?: number,"ticket_footer"?: string | null,"timezone"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"id"?: string,"last_sale_number"?: number,"name"?: string,"prices_include_tax"?: boolean,"slug"?: string,"tax_rate"?: number,"ticket_footer"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"id"?: string,"last_sale_number"?: number,"name"?: string,"prices_include_tax"?: boolean,"slug"?: string,"tax_rate"?: number,"ticket_footer"?: string | null,"timezone"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -404,7 +404,7 @@ isOneToOne: true
 { Args: { "p_items": Json,"p_note"?: string,"p_store_id": string,"p_supplier"?: string }; Returns: string
                            },
 "create_store":
-{ Args: { "p_currency"?: string,"p_name": string,"p_prices_include_tax"?: boolean,"p_tax_rate"?: number }; Returns: string
+{ Args: { "p_currency"?: string,"p_name": string,"p_prices_include_tax"?: boolean,"p_tax_rate"?: number,"p_timezone"?: string }; Returns: string
                            },
 "invitation_preview":
 { Args: { "p_token": string }; Returns: {
