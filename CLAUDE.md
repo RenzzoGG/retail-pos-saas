@@ -72,6 +72,7 @@ Documentación clave:
 - El proceso `next-server (v16.4.3)` que corre como root es **Supabase Studio** (contenedor
   `supabase_studio_retail-pos-saas`, hecho con Next.js). No es ajeno: no reportarlo.
 - Si `npm run dev` entra en un bucle de recargas, la caché `.next` está corrupta: detener el servidor y
-  borrar `.next`. Pasa después de reinstalar dependencias (`npm ci`).
+  borrar `.next`. Pasa cuando algo reescribe `node_modules` o `.next` entre sesiones de
+  `next dev` (por ejemplo `npm ci`, o el `next build` que hace `npm run test:e2e`).
 - `vendor/` contiene dependencias instaladas desde tarballs locales (SheetJS); ver `vendor/README.md`.
 - Los usuarios demo del seed y su contraseña (solo local) están en el README.

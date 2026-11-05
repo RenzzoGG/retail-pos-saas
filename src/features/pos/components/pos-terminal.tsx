@@ -148,6 +148,15 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
     return () => clearTimeout(timer);
   }, [customerQuery]);
 
+  function scanCode(scanned: string) {
+    searchSeq.current++;
+    startLookup(async () => {
+      const product = await lookupSaleProduct(scanned);
+      if (product) addProduct(product);
+      else setScanMessage({ tone: "error", text: `No product with barcode or SKU “${scanned}”.` });
+    });
+  }
+
   function onScanKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter") return;
     e.preventDefault();
@@ -156,13 +165,10 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
     // Clear now: the scanner may already be typing the next code.
     setCode("");
     setSuggestions([]);
-    searchSeq.current++;
-    startLookup(async () => {
-      const product = await lookupSaleProduct(scanned);
-      if (product) addProduct(product);
-      else setScanMessage({ tone: "error", text: `No product with barcode or SKU “${scanned}”.` });
-    });
+    scanCode(scanned);
   }
+
+  const backToScan = () => scanRef.current?.focus();
 
   const openCheckout = useCallback(() => {
     if (!canCharge || done) return;
@@ -265,6 +271,12 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
       } else if (e.key === "Backspace" && e.altKey && e.shiftKey) {
         e.preventDefault();
         if (!checkoutOpen) clearSale();
+      } else if (!checkoutOpen && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Typing (or a scanner) with no text field focused, e.g. right after
+        // clicking a button: send it to the scan field instead of losing it.
+        const el = document.activeElement;
+        const editable = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement;
+        if (!editable) scanRef.current?.focus();
       }
     }
     window.addEventListener("keydown", onKey);
@@ -277,9 +289,9 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
   if (done) return <SaleCompleted sale={done} currency={currency} onNewSale={newSale} />;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    <div className="grid grid-cols-1 gap-6 pb-20 lg:grid-cols-[minmax(0,1fr)_22rem] lg:pb-0">
       {/* ---------------------------------------------------------- cart side */}
-      <section aria-labelledby="cart-heading" className="space-y-4">
+      <section aria-labelledby="cart-heading" className="min-w-0 space-y-4">
         <div className="space-y-1">
           <label htmlFor="pos-scan" className="block text-sm font-medium text-slate-800 dark:text-slate-200">
             Scan or search <kbd className="ml-1 rounded border px-1 text-xs text-slate-500">F2</kbd>
@@ -366,19 +378,18 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">{formatMoney(item.unitPrice, currency)}</td>
                       <td className="px-3 py-2 text-right">
-                        <label htmlFor={`qty-${item.productId}`} className="sr-only">Quantity of {item.name}</label>
-                        <input
+                        <QuantityInput
                           id={`qty-${item.productId}`}
-                          type="number"
-                          min={1}
-                          step={1}
-                          inputMode="numeric"
+                          label={`Quantity of ${item.name}`}
                           value={item.quantity}
-                          onChange={(e) => {
-                            const qty = Math.max(1, Math.floor(Number(e.target.value) || 1));
-                            changeCart(() => setItems((cur) => cur.map((i) => (i.productId === item.productId ? { ...i, quantity: qty } : i))));
+                          onCommit={(qty) =>
+                            changeCart(() => setItems((cur) => cur.map((i) => (i.productId === item.productId ? { ...i, quantity: qty } : i))))
+                          }
+                          onBarcode={(scanned) => {
+                            setScanMessage({ tone: "info", text: "That looked like a barcode: added it as a product." });
+                            scanCode(scanned);
                           }}
-                          className="w-20 rounded-md border border-slate-300 bg-white px-2 py-1 text-right tabular-nums focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900"
+                          onDone={backToScan}
                         />
                       </td>
                       <td className="px-3 py-2 text-right">
@@ -388,6 +399,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
                           value={item.discount}
                           currency={currency}
                           invalid={Boolean(line?.invalidDiscount)}
+                          onDone={backToScan}
                           onChange={(d) => changeCart(() => setItems((cur) => cur.map((i) => (i.productId === item.productId ? { ...i, discount: d } : i))))}
                         />
                       </td>
@@ -411,7 +423,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
       </section>
 
       {/* -------------------------------------------------------- totals side */}
-      <aside aria-label="Sale summary" className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      <aside aria-label="Sale summary" className="min-w-0 space-y-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         <div className="space-y-1">
           <label htmlFor="pos-customer" className="block text-sm font-medium text-slate-800 dark:text-slate-200">
             Customer (optional) <kbd className="ml-1 rounded border px-1 text-xs text-slate-500">F4</kbd>
@@ -472,6 +484,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
             currency={currency}
             invalid={totals.invalidSaleDiscount}
             onChange={(d) => changeCart(() => setSaleDiscount(d))}
+            onDone={backToScan}
             wide
           />
         </div>
@@ -519,6 +532,17 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
 
       <ShortcutBar />
 
+      {/* Tablets/phones: the total and the Charge button always in reach. */}
+      <div className="fixed inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:hidden dark:border-slate-800 dark:bg-slate-900/95">
+        <span className="text-lg font-semibold tabular-nums">
+          <span className="sr-only">Total </span>
+          {money(totals.totalCents)}
+        </span>
+        <Button onClick={openCheckout} disabled={!canCharge} className="px-6 py-3 text-base">
+          Charge
+        </Button>
+      </div>
+
       {checkoutOpen && payments ? (
         <CheckoutDialog
           totalCents={totals.totalCents}
@@ -542,6 +566,7 @@ function DiscountInput({
   onChange,
   invalid,
   currency,
+  onDone,
   wide = false,
 }: {
   id: string;
@@ -550,9 +575,13 @@ function DiscountInput({
   onChange: (d: Discount | null) => void;
   invalid: boolean;
   currency: string;
+  onDone?: () => void;
   wide?: boolean;
 }) {
-  const kind = value?.kind ?? "amount";
+  // The unit is remembered even while the field is empty, so choosing "%"
+  // before typing the number works.
+  const [chosenKind, setChosenKind] = useState<Discount["kind"]>(value?.kind ?? "amount");
+  const kind = value?.kind ?? chosenKind;
   const symbol = new Intl.NumberFormat("en-US", { style: "currency", currency }).formatToParts(0).find((p) => p.type === "currency")?.value ?? "$";
   return (
     <div className={`inline-flex items-center gap-1 ${wide ? "w-full" : ""}`}>
@@ -565,6 +594,12 @@ function DiscountInput({
         value={value ? String(value.value) : ""}
         placeholder="0"
         aria-invalid={invalid || undefined}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onDone?.();
+          }
+        }}
         onChange={(e) => {
           const text = e.target.value.replace(",", ".");
           if (text.trim() === "") return onChange(null);
@@ -579,7 +614,11 @@ function DiscountInput({
       <select
         id={`${id}-kind`}
         value={kind}
-        onChange={(e) => onChange(value ? { kind: e.target.value as Discount["kind"], value: value.value } : null)}
+        onChange={(e) => {
+          const next = e.target.value as Discount["kind"];
+          setChosenKind(next);
+          if (value) onChange({ kind: next, value: value.value });
+        }}
         className="rounded-md border border-slate-300 bg-white px-1 py-1 text-sm focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900"
       >
         <option value="amount">{symbol}</option>
@@ -654,3 +693,63 @@ function SaleCompleted({ sale, currency, onNewSale }: { sale: SaleDetail; curren
   );
 }
 
+
+/**
+ * Quantity field. The value is committed on Enter or blur. Safety net: if a
+ * scanner types a barcode here by mistake (6+ digits then Enter), the quantity
+ * is left as it was and the code is scanned as a product instead.
+ */
+function QuantityInput({
+  id,
+  label,
+  value,
+  onCommit,
+  onBarcode,
+  onDone,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  onCommit: (qty: number) => void;
+  onBarcode: (code: string) => void;
+  onDone: () => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? String(value);
+
+  function commit(text: string) {
+    setDraft(null);
+    const qty = Math.floor(Number(text));
+    if (Number.isFinite(qty) && qty >= 1 && qty <= 9999 && qty !== value) onCommit(qty);
+  }
+
+  return (
+    <>
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+      <input
+        id={id}
+        inputMode="numeric"
+        value={shown}
+        // Select on focus: typing replaces the quantity (and a stray scan isn't appended to it).
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))}
+        onBlur={(e) => commit(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          const text = e.currentTarget.value;
+          if (text.length >= 6) {
+            setDraft(null); // keep the previous quantity
+            onBarcode(text);
+          } else {
+            commit(text);
+          }
+          onDone();
+        }}
+        className="w-20 rounded-md border border-slate-300 bg-white px-2 py-1 text-right tabular-nums focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900"
+      />
+    </>
+  );
+}
