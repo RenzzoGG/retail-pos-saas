@@ -62,6 +62,9 @@ export const products = pgTable(
     check("products_sale_price_nonneg", sql`${t.salePrice} >= 0`),
     check("products_low_stock_threshold_nonneg", sql`${t.lowStockThreshold} >= 0`),
     check("products_sku_not_blank", sql`length(trim(${t.sku})) > 0`),
+    // Starts with a letter or digit, no spaces: a SKU can never look like a
+    // spreadsheet formula (=, +, -, @) when exported or imported.
+    check("products_sku_format", sql`${t.sku} ~ '^[A-Za-z0-9][^[:space:]]*$'`),
     check("products_name_not_blank", sql`length(trim(${t.name})) > 0`),
   ],
 );

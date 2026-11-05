@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { signUpSchema } from "@/features/auth/schemas";
 import { storeSettingsSchema } from "@/features/stores/schemas";
 import { inviteSchema } from "@/features/team/schemas";
+import { productSchema } from "@/features/inventory/schemas";
 
 describe("store settings schema", () => {
   it("converts a percentage into a rate and reads the checkbox", () => {
@@ -38,5 +39,15 @@ describe("auth and invite schemas", () => {
   });
   it("requires 8+ character passwords", () => {
     expect(signUpSchema.safeParse({ fullName: "Ana", email: "a@b.co", password: "short" }).success).toBe(false);
+  });
+});
+
+describe("product schema", () => {
+  const base = { name: "Cable", barcode: "", category: "", salePrice: "9.99", lowStockThreshold: "2" };
+  it("accepts normal SKUs and rejects formula-like or spaced ones", () => {
+    expect(productSchema.safeParse({ ...base, sku: "CBL-USBC-1M" }).success).toBe(true);
+    for (const sku of ["=1+1", "+SUM", "@x", "-5", "A 1"]) {
+      expect(productSchema.safeParse({ ...base, sku }).success).toBe(false);
+    }
   });
 });

@@ -1,7 +1,7 @@
 -- Phase 5: import_products (atomic product import) and import_batches.
 begin;
 \ir _helpers.psql
-select plan(26);
+select plan(27);
 
 select tests.create_user('owner@imp.test',   '19000000-0000-4000-8000-000000000001');
 select tests.create_user('cashier@imp.test', '19000000-0000-4000-8000-000000000002');
@@ -61,6 +61,10 @@ select throws_ok(
        '[{"name":"A","sku":"CNT","sale_price":5}]') $$,
   '22023', 'invalid_row_count', 'row counts must add up (total = valid + skipped)');
 
+select throws_ok(
+  $$ select public.import_products('29000000-0000-4000-8000-000000000001', 'formula.csv', false, 1, 0,
+       '[{"name":"Formula","sku":"=1+1","sale_price":1}]') $$,
+  '23514', null, 'SKUs that look like spreadsheet formulas are rejected by the database');
 select tests.reset_role();
 select is((select count(*)::int from public.products where store_id = '29000000-0000-4000-8000-000000000001'), 1,
   'failed imports saved no products');

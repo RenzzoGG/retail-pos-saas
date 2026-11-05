@@ -64,6 +64,13 @@
       "when": 1793895801361,
       "tag": "20261105162321_product_import",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793896877990,
+      "tag": "20261105164117_sku_format",
+      "breakpoints": true
     }
   ]
 }

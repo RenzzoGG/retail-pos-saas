@@ -18,7 +18,7 @@ export type ColumnSpec = { key: ColumnKey; header: string; required: boolean; al
 
 export const COLUMNS: readonly ColumnSpec[] = [
   { key: "name", header: "Name", required: true, aliases: ["product", "product name"], help: "Product name (up to 120 characters)." },
-  { key: "sku", header: "SKU", required: true, aliases: ["item code", "product code"], help: "Unique code in your store, no spaces." },
+  { key: "sku", header: "SKU", required: true, aliases: ["item code", "product code"], help: "Unique code in your store. Starts with a letter or digit, no spaces." },
   { key: "barcode", header: "Barcode", required: false, aliases: ["ean", "upc", "gtin", "bar code"], help: "Optional. 4–64 letters, digits or dashes. Keep the column as text so leading zeros survive." },
   { key: "category", header: "Category", required: false, aliases: [], help: "Optional." },
   { key: "sale_price", header: "Sale price", required: true, aliases: ["price", "selling price", "retail price"], help: "0 or more, up to 2 decimals." },

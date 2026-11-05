@@ -189,7 +189,7 @@ describe("validateRows", () => {
     const messages = (i: number) => rows[i]?.errors.map((e) => `${e.column}: ${e.message}`);
     expect(messages(0)).toEqual([
       "name: Name is required.",
-      "sku: SKU can't contain spaces.",
+      "sku: SKU must start with a letter or digit and can't contain spaces.",
       "barcode: Barcode must be 4–64 letters, digits or dashes.",
       "sale_price: Sale price must be a number.",
       "low_stock_threshold: Low stock threshold can't be negative.",
@@ -201,6 +201,11 @@ describe("validateRows", () => {
     ]);
     expect(messages(2)).toEqual(["unit_cost: Unit cost needs an initial stock: costs come only from stock entries."]);
     expect(rows.every((r) => r.status === "error" && r.data === null)).toBe(true);
+  });
+
+  it("rejects SKUs that look like spreadsheet formulas", () => {
+    const { rows } = validateRows(rowsFrom("Name,SKU,Sale price\nX,=1+1,1\nY,@cmd,1\nZ,-5,1\nOk,9-OK,1\n"), [], { updateExisting: false });
+    expect(rows.map((r) => r.status)).toEqual(["error", "error", "error", "new"]);
   });
 
   it("flags duplicates inside the file on every involved row", () => {

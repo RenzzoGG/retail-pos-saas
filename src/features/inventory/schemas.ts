@@ -24,7 +24,7 @@ export const productSchema = z.object({
     .trim()
     .min(1, "Enter a SKU.")
     .max(64, "SKU is too long.")
-    .regex(/^[^\s]+$/, "SKU can't contain spaces."),
+    .regex(/^[A-Za-z0-9]\S*$/, "SKU must start with a letter or digit and can't contain spaces."),
   barcode: z
     .string()
     .trim()

@@ -87,7 +87,7 @@ export function validateRows(
     const sku = textCell(v.sku);
     if (!sku) add("sku", "SKU is required.");
     else if (sku.length > 64) add("sku", "SKU is longer than 64 characters.");
-    else if (/\s/.test(sku)) add("sku", "SKU can't contain spaces.");
+    else if (!/^[A-Za-z0-9]\S*$/.test(sku)) add("sku", "SKU must start with a letter or digit and can't contain spaces.");
 
     const barcode = textCell(v.barcode) || null;
     if (typeof v.barcode === "number" && !Number.isInteger(v.barcode)) {
@@ -180,6 +180,7 @@ export function validateRows(
       diff(HEADER_LABELS.low_stock_threshold, String(match.lowStockThreshold), String(data.low_stock_threshold));
     }
     if (data.initial_stock > 0) changes.push(`Stock: +${data.initial_stock} at ${(data.unit_cost as number).toFixed(2)} each`);
+    if (!match && changes.length === 0) changes.push("New product");
 
     return { rowNumber: row.rowNumber, status: match ? "update" : "new", display: shown, errors: [], changes, data };
   });
