@@ -8,6 +8,7 @@ import {
   numeric,
   pgTable,
   text,
+  timestamp,
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -29,6 +30,8 @@ export const customers = pgTable(
     phone: text("phone"),
     email: text("email"),
     notes: text("notes"),
+    /** Soft delete (customers with sales are archived, not erased). Set only by delete_customer(). */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdBy: uuid("created_by").references(() => authUsers.id, { onDelete: "set null" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -203,6 +206,8 @@ export const returnItems = pgTable(
     saleItemId: uuid("sale_item_id").notNull(),
     quantity: integer("quantity").notNull(),
     refundAmount: numeric("refund_amount", money).notNull(),
+    /** false = damaged/written off: refunded, but the units did not go back to stock. */
+    restocked: boolean("restocked").notNull().default(true),
   },
   (t) => [
     foreignKey({

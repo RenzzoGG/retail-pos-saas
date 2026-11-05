@@ -21,14 +21,14 @@ export type Database = {
                   ]
                 },"customers": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"document_id": string | null,"email": string | null,"id": string,"name": string,"notes": string | null,"phone": string | null,"store_id": string,"updated_at": string
+                    "created_at": string,"created_by": string | null,"deleted_at": string | null,"document_id": string | null,"email": string | null,"id": string,"name": string,"notes": string | null,"phone": string | null,"store_id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"document_id"?: string | null,"email"?: string | null,"id"?: string,"name": string,"notes"?: string | null,"phone"?: string | null,"store_id": string,"updated_at"?: string
+                    "created_at"?: string,"created_by"?: string | null,"deleted_at"?: string | null,"document_id"?: string | null,"email"?: string | null,"id"?: string,"name": string,"notes"?: string | null,"phone"?: string | null,"store_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"document_id"?: string | null,"email"?: string | null,"id"?: string,"name"?: string,"notes"?: string | null,"phone"?: string | null,"store_id"?: string,"updated_at"?: string
+                    "created_at"?: string,"created_by"?: string | null,"deleted_at"?: string | null,"document_id"?: string | null,"email"?: string | null,"id"?: string,"name"?: string,"notes"?: string | null,"phone"?: string | null,"store_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -141,14 +141,14 @@ isOneToOne: false
                   ]
                 },"return_items": {
                   Row: {
-                    "id": string,"quantity": number,"refund_amount": number,"return_id": string,"sale_item_id": string,"store_id": string
+                    "id": string,"quantity": number,"refund_amount": number,"restocked": boolean,"return_id": string,"sale_item_id": string,"store_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "id"?: string,"quantity": number,"refund_amount": number,"return_id": string,"sale_item_id": string,"store_id": string
+                    "id"?: string,"quantity": number,"refund_amount": number,"restocked"?: boolean,"return_id": string,"sale_item_id": string,"store_id": string
                   }
                   Update: {
-                    "id"?: string,"quantity"?: number,"refund_amount"?: number,"return_id"?: string,"sale_item_id"?: string,"store_id"?: string
+                    "id"?: string,"quantity"?: number,"refund_amount"?: number,"restocked"?: boolean,"return_id"?: string,"sale_item_id"?: string,"store_id"?: string
                   }
                   Relationships: [
                     {
@@ -431,6 +431,9 @@ isOneToOne: true
                            },
 "create_store":
 { Args: { "p_currency"?: string,"p_name": string,"p_prices_include_tax"?: boolean,"p_tax_rate"?: number,"p_timezone"?: string }; Returns: string
+                           },
+"delete_customer":
+{ Args: { "p_customer_id": string }; Returns: string
                            },
 "import_products":
 { Args: { "p_file_name": string,"p_rows": Json,"p_skipped_rows": number,"p_store_id": string,"p_total_rows": number,"p_update_existing": boolean }; Returns: string

@@ -85,6 +85,20 @@
       "when": 1793914337074,
       "tag": "20261105213217_pos",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793919859022,
+      "tag": "20261105230419_returns_customers_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793919860480,
+      "tag": "20261105230420_returns_customers",
+      "breakpoints": true
     }
   ]
 }
