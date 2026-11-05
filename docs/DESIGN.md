@@ -72,139 +72,262 @@ interna del CLI (`supabase_network_<project_id>`, depende de nombres internos y 
 - La clave **service role** (salta RLS) solo se usa en: webhook de Stripe y scripts de seed. Nunca en
   código que atienda peticiones de usuarios.
 
-## 2. Modelo de datos
+## 2. Modelo de datos (implementado en la Fase 2)
 
-Convenciones: PK `id uuid default gen_random_uuid()`, `created_at`/`updated_at timestamptz`,
-dinero en `numeric(12,2)`, cantidades en `integer` (solo unidades enteras; no hay productos a granel en
-esta versión). Todas las tablas de negocio llevan `store_id` (clave del aislamiento).
+Fuente de verdad: `db/schema/*.ts` (Drizzle) → `supabase/migrations/*_schema.sql`. RLS, privilegios,
+triggers y funciones están en `*_security.sql` y `*_functions.sql` (migraciones SQL personalizadas,
+registradas en el journal de Drizzle). `supabase db reset` aplica todo en orden y luego `supabase/seed.sql`.
 
-**Impuestos y moneda por tienda:** cada tienda define `currency` (código ISO 4217, p. ej. `USD`),
-`tax_rate` (`numeric(5,4)`, p. ej. `0.0825`) y `prices_include_tax` (boolean).
-- Si `prices_include_tax = true`: `total = Σ líneas`, `tax = total − total / (1 + tax_rate)`.
-- Si es `false`: `tax = subtotal × tax_rate`, `total = subtotal + tax`.
+**Convenciones**
+- PK `uuid default gen_random_uuid()` (excepto `activity_log` y `stock_movements`: `bigint identity`,
+  porque son registros de solo-añadir y ordenarlos por id es útil).
+- `created_at`/`updated_at timestamptz` (`updated_at` lo mantiene el trigger `app.set_updated_at`).
+- Dinero `numeric(12,2)`; tasas `numeric(5,4)`; cantidades `integer` (solo unidades enteras).
+- Todas las tablas de negocio llevan `store_id` (la clave del aislamiento).
+- **Claves foráneas compuestas** `(x_id, store_id) → padre(id, store_id)` en todas las tablas hijas.
+  *Por qué:* RLS solo valida el `store_id` de la fila que escribes. Sin la FK compuesta, el usuario de
+  la tienda A podría insertar en su tienda una fila que apunte a un producto o cliente de B si adivinara
+  su UUID. Con la FK compuesta, la BD exige que el padre pertenezca a la **misma** tienda.
+- `CHECK`: stock ≥ 0, cantidades > 0, montos ≥ 0, pagos > 0, descuento ≤ subtotal, moneda ISO
+  (`^[A-Z]{3}$`), `tax_rate` entre 0 y 1, signo del movimiento acorde a su tipo, efectivo entregado ≥ monto.
+- Índices en `store_id`, `(store_id, created_at)` para ventas/movimientos/log, y únicos parciales
+  `(store_id, sku)` y `(store_id, barcode)` solo para productos no borrados (soft delete).
 
-La venta guarda una copia de la tasa y del modo usados (`tax_rate`, `prices_include_tax` en `sales`)
-para que cambiar la configuración no altere ventas pasadas. La tienda de demo usa **USD con precios que
-incluyen impuesto**.
+**Impuestos y moneda por tienda:** `stores.currency`, `stores.tax_rate`, `stores.prices_include_tax`.
+- Impuesto incluido: `total = subtotal − descuento`, `tax = round(total · r / (1 + r), 2)`.
+- Impuesto añadido: `tax = round((subtotal − descuento) · r, 2)`, `total = base + tax`.
+- Cada venta copia `tax_rate` y `prices_include_tax`, así cambiar la configuración no altera el pasado.
 
-### Identidad y tiendas
-| Tabla | Columnas principales | Notas |
-|---|---|---|
-| `stores` | id, name, slug, currency, tax_rate, prices_include_tax, ticket_footer, created_by | Una por negocio |
-| `profiles` | id (= `auth.users.id`), full_name, avatar_url | Datos públicos del usuario |
-| `store_members` | store_id → stores, user_id → auth.users, role (`owner`\|`admin`\|`cashier`), active | Único (store_id, user_id). Un usuario puede pertenecer a varias tiendas |
-| `invitations` | store_id, email, role, token_hash, expires_at, accepted_at, invited_by | El token se guarda hasheado |
+**Costo promedio ponderado** (decidido en la Fase 2): cada entrada recalcula
+`costo = (stock · costo_actual + cant · costo_entrada) / (stock + cant)`; si el stock era 0, el costo pasa a
+ser el de la entrada. Cada venta copia el costo vigente en `sale_item_costs` para calcular la utilidad.
 
-### Inventario
-| Tabla | Columnas principales | Notas |
-|---|---|---|
-| `products` | store_id, sku, barcode, name, category, sale_price, stock, low_stock_threshold, active, deleted_at | Únicos parciales (store_id, sku) y (store_id, barcode) donde `deleted_at is null`. `CHECK (stock >= 0)` |
-| `product_costs` | product_id (PK) → products, store_id, cost_price | Separada para que el cajero no la vea |
-| `stock_entries` | store_id, supplier, note, created_by | Entrada de mercancía (cabecera) |
-| `stock_entry_items` | entry_id, product_id, quantity, unit_cost | Actualiza stock y costo |
-| `stock_movements` | store_id, product_id, type (`sale`\|`return`\|`entry`), quantity (±), ref_table, ref_id, created_by | Libro mayor: la suma de movimientos = stock actual |
-| `import_batches` | store_id, file_path, status, total_rows, error_rows, errors jsonb, created_by | Importación Excel |
+### Diagrama entidad-relación
 
-### Ventas y clientes
-| Tabla | Columnas principales | Notas |
-|---|---|---|
-| `customers` | store_id, name, document_id, phone, email | Historial = sus `sales` |
-| `sales` | store_id, number (consecutivo por tienda), customer_id?, cashier_id, subtotal, discount_total, tax_rate, prices_include_tax, tax_total, total, status (`completed`\|`partially_returned`\|`returned`), idempotency_key | Único (store_id, idempotency_key) |
-| `sale_items` | sale_id, store_id, product_id, product_name, unit_price, quantity, discount, line_total | *Snapshot* del precio: si el producto cambia, la venta no |
-| `sale_item_costs` | sale_item_id (PK), store_id, unit_cost | Snapshot del costo para utilidad; oculto al cajero |
-| `sale_payments` | sale_id, store_id, method (`cash`\|`card`\|`transfer`), amount, received, change | Permite pago mixto |
-| `returns` | store_id, sale_id → sales, reason, refund_total, created_by | Siempre ligada a la venta original |
-| `return_items` | return_id, sale_item_id → sale_items, quantity, refund_amount | No puede superar lo vendido − lo ya devuelto |
+```mermaid
+erDiagram
+  AUTH_USERS ||--|| PROFILES : "1 perfil"
+  AUTH_USERS ||--o{ STORE_MEMBERS : "pertenece"
+  STORES ||--o{ STORE_MEMBERS : "equipo (owner/admin/cashier)"
+  STORES ||--o{ INVITATIONS : "invita"
+  STORES ||--o{ PRODUCTS : "catálogo"
+  PRODUCTS ||--o| PRODUCT_COSTS : "costo (oculto al cajero)"
+  STORES ||--o{ STOCK_ENTRIES : "recibe"
+  STOCK_ENTRIES ||--|{ STOCK_ENTRY_ITEMS : "líneas"
+  PRODUCTS ||--o{ STOCK_ENTRY_ITEMS : "recibido en"
+  PRODUCTS ||--o{ STOCK_MOVEMENTS : "libro de stock"
+  STORES ||--o{ CUSTOMERS : "clientes"
+  CUSTOMERS |o--o{ SALES : "historial"
+  STORES ||--o{ SALES : "vende"
+  SALES ||--|{ SALE_ITEMS : "líneas"
+  PRODUCTS ||--o{ SALE_ITEMS : "vendido en"
+  SALE_ITEMS ||--|| SALE_ITEM_COSTS : "costo copiado (oculto al cajero)"
+  SALES ||--o{ SALE_PAYMENTS : "pagos (mixtos)"
+  SALES ||--o{ RETURNS : "devoluciones"
+  RETURNS ||--|{ RETURN_ITEMS : "líneas"
+  SALE_ITEMS ||--o{ RETURN_ITEMS : "devuelve"
+  STORES ||--o| SUBSCRIPTIONS : "plan Stripe"
+  STORES ||--o{ ACTIVITY_LOG : "historial (sin FK)"
 
-### Auditoría y suscripción
-| Tabla | Columnas principales | Notas |
-|---|---|---|
-| `activity_log` | store_id, actor_id, table_name, record_id, action (`insert`\|`update`\|`delete`), before jsonb, after jsonb, created_at | Escrita por triggers; solo lectura para owner/admin |
-| `subscriptions` | store_id (único), stripe_customer_id, stripe_subscription_id, status (`trialing`\|`active`\|`past_due`\|`canceled`\|...), price_id, trial_end, current_period_end, cancel_at_period_end | Fuente de verdad: webhooks |
-| `stripe_events` | id (= event.id de Stripe), type, processed_at | Evita procesar un evento dos veces |
-
-### Relaciones (resumen)
+  STORES {
+    uuid id PK
+    text slug UK
+    text currency
+    numeric tax_rate
+    bool prices_include_tax
+    int last_sale_number
+  }
+  PRODUCTS {
+    uuid id PK
+    uuid store_id FK
+    text sku
+    text barcode
+    numeric sale_price
+    int stock "CHECK >= 0"
+    timestamptz deleted_at
+  }
+  SALES {
+    uuid id PK
+    uuid store_id FK
+    int number "único por tienda"
+    numeric subtotal
+    numeric tax_total
+    numeric total
+    uuid idempotency_key "único por tienda"
+  }
+  STOCK_MOVEMENTS {
+    bigint id PK
+    uuid product_id FK
+    enum type "sale|return|entry"
+    int quantity "con signo"
+    int stock_after
+  }
+  ACTIVITY_LOG {
+    bigint id PK
+    uuid store_id
+    uuid actor_id
+    text table_name
+    enum action
+    jsonb before
+    jsonb after
+  }
 ```
-auth.users 1─1 profiles
-auth.users 1─N store_members N─1 stores
-stores 1─N products 1─1 product_costs
-stores 1─N sales 1─N sale_items 1─1 sale_item_costs
-              sales 1─N sale_payments
-              sales 1─N returns 1─N return_items N─1 sale_items
-customers 1─N sales
-products 1─N stock_movements ; stock_entries 1─N stock_entry_items
-stores 1─1 subscriptions ; stores 1─N activity_log
-```
 
-## 3. Estrategia de RLS multitienda y roles
+### Tablas (19)
+| Grupo | Tabla | Para qué |
+|---|---|---|
+| Identidad | `stores` | Negocio: nombre, slug, moneda, impuestos, pie de ticket, contador de ventas |
+| | `profiles` | Nombre del usuario (1-1 con `auth.users`, creado por trigger) |
+| | `store_members` | Usuario ↔ tienda con rol `owner`/`admin`/`cashier` |
+| | `invitations` | Invitaciones por email con rol (nunca `owner`), token guardado como hash |
+| Inventario | `products` | SKU, código de barras, precio de venta, stock, umbral de stock bajo, soft delete |
+| | `product_costs` | Costo promedio ponderado (tabla aparte: el cajero no la ve) |
+| | `stock_entries` / `stock_entry_items` | Entradas de mercancía con costo unitario |
+| | `stock_movements` | Libro mayor de stock: `stock = Σ quantity` por producto |
+| Ventas | `customers` | Clientes; su historial son sus `sales` |
+| | `sales` | Cabecera: número por tienda, totales, impuesto copiado, estado, clave de idempotencia |
+| | `sale_items` | Líneas con copia de nombre/SKU/precio |
+| | `sale_item_costs` | Costo copiado por línea (utilidad; oculto al cajero) |
+| | `sale_payments` | Pagos `cash`/`card`/`transfer`, mixtos, con efectivo entregado |
+| | `returns` / `return_items` | Devoluciones ligadas a la venta y a cada línea |
+| Auditoría | `activity_log` | Quién creó/editó/borró qué (antes/después), inmutable |
+| Stripe | `subscriptions` | Estado del plan por tienda (lo escribe el webhook) |
+| | `stripe_events` | Eventos procesados (idempotencia del webhook) |
 
-1. **RLS activado en todas las tablas** del esquema `public`. Sin política = sin acceso (denegar por defecto).
-2. **Funciones auxiliares** (`security definer`, `stable`, `set search_path = ''`):
-   - `app.is_store_member(store_id uuid) → boolean`
-   - `app.has_store_role(store_id uuid, roles app.store_role[]) → boolean`
+`import_batches` (importación de Excel) se crea en la Fase 5.
 
-   Consultan `store_members` con `auth.uid()`. *Por qué `security definer`:* si la política de
-   `store_members` consultara `store_members`, habría recursión infinita; la función la evita y además se
-   cachea por consulta (`(select auth.uid())` para rendimiento).
-3. **Políticas tipo** (ejemplo `products`):
-   - SELECT: `is_store_member(store_id)`
-   - INSERT/UPDATE/DELETE: `has_store_role(store_id, '{owner,admin}')`
-4. **Matriz de permisos:**
+## 3. Seguridad: RLS, privilegios y roles (implementado en la Fase 2)
 
+### Cómo funciona RLS (resumen para aprender)
+- PostgREST (la API de Supabase) verifica el JWT del usuario y ejecuta cada consulta como el rol
+  `authenticated` con los *claims* del token en `request.jwt.claims`; `auth.uid()` lee de ahí el `sub`.
+  Sin sesión, la consulta corre como `anon`.
+- Con RLS activado, Postgres añade a cada consulta la condición de la política:
+  - **`USING`** filtra qué filas existentes ves, actualizas o borras. Una fila que no pasa es invisible:
+    un `UPDATE`/`DELETE` sobre otra tienda afecta **0 filas** sin dar error.
+  - **`WITH CHECK`** valida la fila nueva en `INSERT`/`UPDATE`. Si no pasa → error `42501`.
+  - Sin ninguna política para una operación → denegada (**negar por defecto**).
+- RLS decide **filas**; los **privilegios (`GRANT`)** deciden operaciones y **columnas**. Usamos ambos.
+- El dueño de las tablas (`postgres`) y `service_role` saltan RLS. Por eso la clave `service_role` solo
+  existe en el servidor (webhook de Stripe, seeds) y las funciones `SECURITY DEFINER` revalidan todo.
+
+### Capas de defensa (todas deben permitir la acción)
+1. **Privilegios mínimos:** `anon` no tiene ningún privilegio en `public`. `authenticated` solo lo
+   necesario, con **privilegios por columna**: nunca puede escribir `products.stock`,
+   `stores.last_sale_number`, `id`, `store_id` (al actualizar) ni `created_by`/`invited_by` (los llena un
+   trigger con `auth.uid()`, así nadie se hace pasar por otro). Las tablas de ventas, devoluciones, libro
+   de stock, historial y suscripción no tienen INSERT/UPDATE/DELETE para `authenticated`.
+   `alter default privileges` evita que futuras tablas se concedan a `anon` automáticamente.
+2. **RLS en las 19 tablas** con las políticas de abajo.
+3. **Funciones `SECURITY DEFINER`** como única vía para escribir ventas, devoluciones, entradas y stock.
+4. **Triggers de integridad:** `app.guard_stock` (el stock no cambia fuera de las funciones, ni siquiera
+   con `service_role`), `app.ensure_store_has_owner` (una tienda nunca se queda sin owner),
+   `app.block_activity_log_changes` (historial inmutable para todos).
+5. **Constraints:** FKs compuestas y `CHECK`.
+
+### Funciones auxiliares (schema `app`)
+`app.is_store_member(store_id)`, `app.has_store_role(store_id, roles[])`, `app.is_store_manager(store_id)`
+(= owner o admin) y `app.shares_store_with(user_id)`.
+- **Por qué `SECURITY DEFINER`:** la política de `store_members` necesita consultar `store_members`; si la
+  consulta pasara por RLS habría recursión infinita. Como *definer*, la función lee la tabla con los
+  privilegios de su dueño y devuelve solo un booleano.
+- **Por qué es seguro:** (1) responden solo sobre el usuario actual (`auth.uid()` del JWT), nunca sobre un
+  usuario pasado por parámetro, así no sirven para espiar membresías ajenas; (2) `set search_path = ''`
+  y nombres totalmente calificados (`public.store_members`, `auth.uid()`) impiden el secuestro por
+  `search_path` (crear un objeto con el mismo nombre en otro schema para que la función lo use);
+  (3) el schema `app` no está expuesto por PostgREST, así que no se pueden llamar como `/rpc`;
+  (4) `EXECUTE` revocado a `PUBLIC`/`anon`. Una prueba pgTAP falla si alguna función definer no fija
+  `search_path`.
+
+### Políticas por tabla (todas `to authenticated`)
+"miembro" = `app.is_store_member(store_id)`; "manager" = owner o admin.
+
+| Tabla | SELECT | INSERT | UPDATE | DELETE | Por qué |
+|---|---|---|---|---|---|
+| `stores` | miembro | — | manager (solo columnas de config) | — | La creación llega en la Fase 3 con una función que crea tienda + owner en una transacción |
+| `profiles` | uno mismo o compañeros de tienda | — (trigger) | uno mismo (`full_name`) | — | Ver nombres del equipo sin exponer a usuarios ajenos |
+| `store_members` | miembro | owner; admin si `role <> 'owner'` | ídem (USING y WITH CHECK) | ídem | El admin no puede tocar owners ni ascender a nadie (ni a sí mismo) a owner |
+| `invitations` | manager | manager | — | manager | Aceptar una invitación será una función (Fase 3); el CHECK impide invitar owners |
+| `products` | miembro | manager (sin `stock`) | manager (sin `stock`) | — | El POS necesita nombre/precio/stock; borrar = `deleted_at` (las ventas siguen apuntando al producto) |
+| `product_costs` | manager | manager | manager (`cost_price`) | — | Costos fuera del alcance del cajero |
+| `stock_entries`, `stock_entry_items`, `stock_movements` | manager | — | — | — | Incluyen costos; se escriben solo con funciones |
+| `customers` | miembro | miembro | miembro | manager | El cajero registra clientes en caja |
+| `sales`, `sale_items`, `sale_payments`, `returns`, `return_items` | miembro | — | — | — | El cajero ve todas las ventas de su tienda (reimprimir ticket, decidido en Fase 2); escribir solo con funciones |
+| `sale_item_costs` | manager | — | — | — | Es la utilidad |
+| `activity_log` | manager | — | — | — | Lo escribe un trigger `SECURITY DEFINER`; inmutable |
+| `subscriptions` | miembro | — | — | — | Todos necesitan saber si la tienda está activa; solo el webhook escribe |
+| `stripe_events` | — | — | — | — | Sin políticas ni privilegios: solo `service_role` |
+
+### Matriz de permisos por rol
 | Recurso | owner | admin | cashier |
 |---|---|---|---|
 | Productos (ver nombre, precio de venta, stock) | ✅ | ✅ | ✅ |
 | Crear/editar productos, cambiar precios | ✅ | ✅ | ❌ |
-| Costos y utilidades (`product_costs`, `sale_item_costs`, dashboard de utilidad) | ✅ | ✅ | ❌ |
+| Costos y utilidades | ✅ | ✅ | ❌ |
 | Registrar ventas | ✅ | ✅ | ✅ |
+| Ver ventas de la tienda | ✅ | ✅ | ✅ |
 | Devoluciones | ✅ | ✅ | ❌ |
 | Configurar tienda (moneda, impuestos, ticket) | ✅ | ✅ | ❌ |
 | Entradas de mercancía / importar Excel | ✅ | ✅ | ❌ |
-| Clientes | ✅ | ✅ | ✅ (crear/ver) |
+| Clientes (ver, crear, editar) | ✅ | ✅ | ✅ |
+| Borrar clientes | ✅ | ✅ | ❌ |
 | Historial de actividad | ✅ | ✅ | ❌ |
-| Invitar usuarios / cambiar roles | ✅ | ✅ (no puede crear owners) | ❌ |
-| Suscripción y facturación | ✅ | ❌ | ❌ |
+| Invitar usuarios / cambiar roles | ✅ | ✅ (sin owners) | ❌ |
+| Suscripción y facturación | ✅ | ❌ | ❌ (Fase 9) |
 
-5. **Columnas sensibles:** RLS filtra *filas*, no *columnas*. Por eso los costos viven en tablas aparte
-   con políticas más estrictas, en lugar de depender de ocultarlos en la UI.
-6. **Defensa en capas:** (a) la UI oculta lo que no corresponde (comodidad), (b) cada Server Action
-   valida sesión, tienda activa y rol (mensajes claros), (c) la BD aplica RLS y valida dentro de las
-   funciones (garantía real).
-7. **Tienda activa:** el usuario elige tienda; se guarda en cookie y se envía como parámetro. RLS no
-   confía en ella: siempre verifica membresía.
+**Tienda activa:** el usuario elige tienda en la UI (Fase 3) y se envía como parámetro; RLS no confía
+en ella, siempre comprueba la membresía.
 
-## 4. Consistencia del stock
+## 4. Consistencia del stock (implementado en la Fase 2)
 
-Objetivo: el stock **nunca** queda inconsistente, aunque dos cajeros vendan el último producto a la vez
-o el usuario pulse "Cobrar" dos veces.
+Funciones en `public` (expuestas como `/rpc/...` solo para `authenticated`), todas `SECURITY DEFINER`,
+`search_path = ''`, y cada una corre en **una transacción**: si algo falla no queda nada a medias.
 
-1. **Nadie actualiza `products.stock` directamente.** Se revoca `UPDATE (stock)` al rol `authenticated`
-   y un trigger rechaza cambios de stock fuera de las funciones autorizadas.
-2. **Funciones SQL transaccionales** (`security definer`, validan rol y tienda internamente):
-   - `create_sale(store_id, items, payments, customer_id, discount, idempotency_key)`
-   - `create_return(sale_id, items, reason)`
-   - `create_stock_entry(store_id, items, supplier, note)`
+| Función | Quién | Qué hace |
+|---|---|---|
+| `create_stock_entry(store_id, items, supplier?, note?)` | owner/admin | Suma stock, recalcula costo promedio ponderado, registra movimiento `entry` |
+| `create_sale(store_id, items, payments, idempotency_key, customer_id?, discount?, note?)` | cualquier miembro | Descuenta stock, toma precios de la BD, calcula impuestos, valida pagos = total, numera, copia costos, registra movimientos `sale` |
+| `create_return(sale_id, items, reason?, refund_method?)` | owner/admin | Valida cantidad ≤ vendida − devuelta, reembolso proporcional, repone stock, movimiento `return`, estado de la venta |
 
-   Cada función corre en **una sola transacción**: si algo falla, no se guarda nada.
-3. **Descuento atómico con bloqueo de fila:**
-   ```sql
-   update products set stock = stock - p_qty
-   where id = p_product_id and store_id = p_store_id and stock >= p_qty
-   returning stock;
-   -- si no devuelve fila → raise exception 'insufficient_stock'
-   ```
-   Postgres bloquea la fila durante el `update`, así que dos ventas simultáneas se serializan.
-   Para evitar interbloqueos, los ítems se procesan ordenados por `product_id`.
-4. **`CHECK (stock >= 0)`** como red de seguridad: **no se permite stock negativo** (decidido).
-   Las cantidades son `integer` y las funciones rechazan cantidades ≤ 0.
-5. **Libro de movimientos** (`stock_movements`): cada cambio inserta un movimiento. Una prueba verifica
-   que `stock = suma de movimientos` (y sirve para auditar).
-6. **Idempotencia:** el cliente genera un `idempotency_key` (UUID) por intento de cobro; si se repite,
-   la función devuelve la venta existente en vez de crear otra.
-7. **Totales calculados en el servidor:** la función recalcula precios desde `products` (no confía en
-   precios enviados por el navegador) y valida que la suma de pagos cubra el total.
-8. **Devoluciones:** validan `cantidad ≤ vendida − ya devuelta` con bloqueo de la venta original
-   (`select ... for update`), reponen stock y actualizan `sales.status`.
+Garantías:
+1. **Nadie escribe `products.stock` directamente**: sin privilegio de columna para `authenticated`, y
+   `app.guard_stock` lo rechaza incluso a `service_role`/`postgres` salvo que la transacción venga de una
+   de las tres funciones (bandera local `app.stock_write`, que la API no permite fijar).
+2. **Descuento atómico con bloqueo de fila:**
+   `update products set stock = stock - q where id = … and stock >= q returning …`. Si no devuelve fila
+   → `insufficient_stock`. Dos ventas simultáneas del último artículo se serializan en la fila.
+   Los productos se procesan **ordenados por id** en todas las funciones para evitar interbloqueos.
+3. **`CHECK (stock >= 0)`** como última red. Cantidades enteras > 0 validadas (rechaza `1.5`, `0`, `-2`).
+4. **Libro de movimientos:** cada cambio inserta en `stock_movements` (con `stock_after`); una prueba
+   verifica `stock = Σ movimientos` y el saldo acumulado de cada movimiento.
+5. **Idempotencia:** `pg_advisory_xact_lock` por (tienda, clave) y, si la clave ya existe, se devuelve la
+   venta original sin cobrar dos veces. Restricción única `(store_id, idempotency_key)`.
+6. **El servidor manda en los números:** precio desde `products`, impuestos desde `stores`, y la suma de
+   pagos debe ser exactamente el total.
+7. **Devoluciones:** bloquean la venta (`for update`); reembolso = parte proporcional del total (prorratea
+   descuentos e impuestos); la devolución que completa la venta reembolsa exactamente el resto, así la suma
+   nunca supera el total por redondeo. Si la venta es de otra tienda responde `sale_not_found` (no revela
+   que existe).
+8. **Número de venta consecutivo por tienda** con `update stores set last_sale_number = last_sale_number + 1`
+   (bloquea la fila de la tienda durante la venta; aceptable para tiendas pequeñas).
+
+Errores de las funciones (el `message` es un código estable para mostrar mensajes en la UI):
+`not_authenticated`, `forbidden` (42501); `invalid_items`, `invalid_quantity`, `invalid_amount`,
+`invalid_discount`, `invalid_payments`, `payments_mismatch`, `duplicate_product`,
+`missing_idempotency_key` (22023); `product_not_found`, `customer_not_found`, `sale_not_found`,
+`sale_item_not_found` (P0002); `insufficient_stock`, `return_exceeds_sold`, `store_needs_owner` (23514);
+`stock_is_read_only`, `activity_log_is_append_only` (42501).
+
+**Pendiente (Fase 6):** prueba de concurrencia real con dos conexiones simultáneas (Vitest + `postgres`);
+pgTAP corre en una sola sesión.
+
+### Historial de actividad
+`app.log_activity` (trigger `AFTER INSERT/UPDATE/DELETE`) en `stores`, `store_members`, `invitations`,
+`products`, `product_costs`, `customers`, `stock_entries`, `sales` y `returns`: guarda tienda, actor
+(`auth.uid()`, nulo si fue el servidor), tabla, id, acción y el registro antes/después en JSON (sin
+`token_hash`). Ignora los cambios que solo tocan `updated_at`, `stock` o `last_sale_number` (la historia del
+stock está en `stock_movements`). `store_id`/`actor_id` no tienen FK a propósito: el historial es
+inmutable y debe sobrevivir aunque se borre la tienda o el usuario.
 
 ## 5. Estructura de carpetas (propuesta)
 
@@ -252,14 +375,20 @@ consultas y validaciones de cada módulo, y escala mejor que carpetas gigantes d
 | Nivel | Herramienta | Qué cubre |
 |---|---|---|
 | Unitarias | Vitest | Cálculo de totales/descuentos/impuestos (precios con impuesto incluido y sin incluir, redondeo), utilidades de dinero, esquemas Zod, parser y validador del Excel, buffer del lector de código de barras |
-| Base de datos | Vitest + Supabase local | **Aislamiento:** usuario de tienda A no lee/escribe datos de B (cada tabla). **Roles:** cajero no lee costos ni cambia precios. **Stock:** ventas concurrentes del último artículo, idempotencia, devoluciones que exceden lo vendido, `stock = Σ movimientos` |
+| Base de datos | **pgTAP** (`npm run test:db` = `supabase test db`), en `supabase/tests/database/` | Estructura (RLS en todas las tablas, privilegios, `search_path` de funciones definer), **aislamiento** A/B en lectura/escritura/RPC, **roles**, **stock** (sin escritura directa, sin negativos, sin sobreventa, `stock = Σ movimientos`), funciones (impuestos, idempotencia, promedio ponderado, devoluciones), historial inmutable y tablas de Stripe |
+| Concurrencia | Vitest + `postgres` contra Supabase local (Fase 6) | Dos ventas simultáneas del último artículo; reintentos con la misma clave de idempotencia |
 | Integración | Vitest | Server Actions con usuarios de prueba; webhook de Stripe con payloads firmados de prueba (`stripe.webhooks.generateTestHeaderString`) |
 | Navegador | Playwright | Registro + crear tienda, invitar cajero, venta con "lector" simulado (tecleo rápido + Enter), devolución, importación Excel, restricción de páginas por rol |
 
 - Los usuarios y datos de prueba los crean los propios tests/seeds (registro vía Auth local). No se
   usan tokens fabricados con secretos.
-- **CI (GitHub Actions):** `lint` → `typecheck` → `test:unit` → `supabase start` + migraciones +
-  `test:db` → build → `test:e2e`. Con protección de rama en `main` (configurada por el usuario en
+- **Por qué pgTAP:** las pruebas corren dentro de Postgres, cada archivo en una transacción que se
+  revierte (no ensucian la BD), y pueden actuar como un usuario igual que PostgREST
+  (`set role authenticated` + `request.jwt.claims`) sin claves ni tokens. Los usuarios y tiendas los crea
+  cada prueba (`supabase/tests/database/_helpers.psql`).
+- **CI (GitHub Actions):** job `checks` (`lint` → `typecheck` → `test` → `build`) y job `database`
+  (`supabase start` solo con Postgres → `db:check` → sin deriva esquema/migraciones → `test:db` →
+  `db:lint`); `test:e2e` se añade en la Fase 11. Con protección de rama en `main` (configurada por el usuario en
   GitHub) para que no se pueda fusionar si falla.
 
 ## 7. Despliegue con Docker en Railway

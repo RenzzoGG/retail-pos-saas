@@ -27,24 +27,32 @@ UI en inglés desde el inicio. (Prettier no se incluyó; se puede añadir si se 
 - [x] `npx supabase start` levanta Supabase local y el contenedor de la app alcanza su API.
 - [x] `drizzle-kit generate` funciona contra `supabase/migrations` (sin cambios: aún no hay tablas).
 - [x] `npm run lint`, `npm run typecheck`, `npm test` y `npm run build` pasan en local y en un clon limpio.
-- [ ] El workflow de CI pasa en GitHub (se verá tras el primer push del usuario).
+- [ ] El workflow de CI pasa en GitHub (pendiente: GitHub Actions bloqueado temporalmente en la cuenta).
 - [x] `.env.example` documenta todas las variables (sin valores reales).
 
-## Fase 2 — Base de datos, migraciones, RLS y seeds
+## Fase 2 — Base de datos, migraciones, RLS y seeds ✅ terminada (CI de GitHub pendiente: Actions bloqueado por facturación)
 **Objetivos:** esquema completo de `docs/DESIGN.md`, RLS en todas las tablas, funciones auxiliares de
-membresía/rol, seeds con dos tiendas y usuarios de prueba, pruebas de aislamiento.
+membresía/rol, funciones de stock, historial de actividad, seeds con dos tiendas y usuarios de prueba,
+pruebas de aislamiento.
 **Terminado cuando:**
-- [ ] Seed con una tienda de demo en **USD con precios que incluyen impuesto** y una segunda tienda para pruebas de aislamiento.
-- [ ] `CHECK (stock >= 0)` y cantidades `integer` en el esquema.
-- [ ] `supabase db reset` aplica migraciones y seeds sin errores.
-- [ ] Prueba que falla si alguna tabla de `public` no tiene RLS.
-- [ ] Pruebas: usuario de tienda A no puede leer/insertar/editar/borrar datos de B (todas las tablas).
-- [ ] Pruebas: cajero no lee costos ni modifica precios.
-- [ ] Pruebas de BD corriendo en CI.
+- [x] Seed con una tienda de demo en **USD con precios que incluyen impuesto** y una segunda tienda para pruebas de aislamiento.
+- [x] `CHECK (stock >= 0)` y cantidades `integer` en el esquema.
+- [x] `supabase db reset` aplica migraciones y seeds sin errores.
+- [x] Prueba que falla si alguna tabla de `public` no tiene RLS.
+- [x] Pruebas: usuario de tienda A no puede leer/insertar/editar/borrar datos de B (todas las tablas).
+- [x] Pruebas: cajero no lee costos ni modifica precios (ni configura la tienda, ni devuelve, ni recibe stock).
+- [x] Funciones `create_stock_entry`, `create_sale`, `create_return` definidas y probadas.
+- [x] Historial de actividad por triggers, inmutable (probado).
+- [x] Pruebas de BD en el CI (job `database`), verificado localmente con el mismo flujo.
+- [ ] El job `database` pasa en GitHub (cuando Actions vuelva a estar disponible).
+
+Quedan para otras fases: prueba de concurrencia real con dos conexiones (Fase 6), tabla
+`import_batches` (Fase 5), funciones `create_store` y `accept_invitation` (Fase 3).
 
 ## Fase 3 — Autenticación, tiendas, roles e invitaciones
-**Objetivos:** registro/login con Supabase Auth, creación de tienda (el creador es owner), selector de
-tienda activa, invitaciones por enlace con rol, gestión de miembros, guards de rol en el servidor.
+**Objetivos:** registro/login con Supabase Auth, creación de tienda (el creador es owner) con una
+función SQL `create_store` (tienda + membresía owner en una transacción), selector de tienda activa,
+invitaciones por enlace con rol y función `accept_invitation`, gestión de miembros, guards de rol en el servidor.
 **Terminado cuando:**
 - [ ] Registro → crear tienda → entrar al panel funciona de punta a punta.
 - [ ] Owner/admin configuran moneda, tasa de impuesto y si los precios incluyen impuesto; el cajero no.
@@ -54,7 +62,8 @@ tienda activa, invitaciones por enlace con rol, gestión de miembros, guards de 
 
 ## Fase 4 — Inventario e historial de actividad
 **Objetivos:** CRUD de productos (SKU, código de barras, precios, umbral de stock bajo), entradas de
-mercancía vía función SQL, alertas de stock bajo, triggers de `activity_log` y vista del historial.
+mercancía vía `create_stock_entry` (ya existe, Fase 2), alertas de stock bajo y vista del historial
+(los triggers de `activity_log` ya existen desde la Fase 2).
 **Terminado cuando:**
 - [ ] Owner/admin crean, editan y eliminan (soft delete) productos; el cajero solo consulta sin costos.
 - [ ] El stock solo cambia por `create_stock_entry` (prueba: UPDATE directo falla).
@@ -76,7 +85,7 @@ línea y globales, pagos en efectivo/tarjeta/transferencia (y mixtos), cambio, v
 **Terminado cuando:**
 - [ ] Escanear un código agrega el producto sin usar el ratón; atajos de teclado para cobrar.
 - [ ] Totales calculados en el servidor; el cajero no puede alterar precios.
-- [ ] Pruebas: concurrencia del último artículo, idempotencia ante doble clic, stock insuficiente.
+- [ ] Prueba de concurrencia real (dos conexiones simultáneas, Vitest + `postgres`) del último artículo; idempotencia ante doble clic desde la UI (la lógica en BD ya está probada en la Fase 2).
 - [ ] `stock = Σ stock_movements` tras las pruebas.
 
 ## Fase 7 — Tickets PDF, devoluciones y clientes
