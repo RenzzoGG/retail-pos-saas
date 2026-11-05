@@ -15,6 +15,13 @@
       "when": 1793845497313,
       "tag": "20261105022457_security",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793845617921,
+      "tag": "20261105022657_functions",
+      "breakpoints": true
     }
   ]
 }
