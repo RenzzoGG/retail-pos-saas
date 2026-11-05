@@ -490,6 +490,55 @@ inmutable y debe sobrevivir aunque se borre la tienda o el usuario.
 `import_batches`: lectura solo owner/admin; sin escritura desde la API; su trigger escribe en el historial
 ("Product import “archivo” created — created: N, updated: N, skipped: N").
 
+## 4d. Punto de venta e historial de ventas (implementado en la Fase 6)
+
+**Rutas:** `/app/pos` (todos los miembros) y `/app/sales`, `/app/sales/[id]` (todos; utilidad solo
+owner/admin). En la navegación, "POS" y "Sales".
+
+### Flujo de venta
+1. **Escaneo:** el campo "Scan or search" está enfocado al cargar. Enter busca el código o SKU **exacto**
+   (`lookupForSale`, solo productos activos y sin costo); el campo se vacía en el mismo Enter (escaneos
+   seguidos no se pisan). Protecciones: si nada editable tiene el foco, lo que se teclea va al campo de
+   escaneo; Enter en cantidad/descuento devuelve el foco al escaneo; si un lector escribe un código en un
+   campo de cantidad (6+ dígitos + Enter) se trata como escaneo y la cantidad no cambia.
+2. **Carrito** (`src/features/pos/calc.ts`, centavos, mismas fórmulas que `create_sale`): cantidades,
+   descuento por renglón y de venta en **% o monto** (el % se convierte a monto en el navegador; la BD
+   recibe montos y valida que no superen lo que descuentan), impuesto incluido o añadido, aviso si la
+   cantidad supera el stock conocido. Es solo una vista previa: la BD recalcula con sus precios.
+3. **Límite de descuento del cajero:** `stores.max_cashier_discount_pct` (10 % por defecto, editable por
+   owner/admin en Settings). `create_sale` rechaza (`discount_limit_exceeded`) si un **cajero** descuenta
+   en total (renglones + venta) más de ese % del importe bruto. Owner/admin sin límite. La UI lo anticipa
+   y deshabilita "Charge".
+4. **Cobro:** `<dialog>` nativo (atrapa el foco, Esc cierra). Varias líneas de pago (efectivo, tarjeta,
+   transferencia); "Cash received" calcula el cambio. "Complete sale" solo se habilita si los pagos suman
+   **exactamente** el total y el efectivo entregado alcanza.
+5. **Idempotencia en el cliente:** la clave se genera al abrir el cobro y se guarda con el carrito en
+   `sessionStorage`; cambiar el carrito la descarta. Doble clic (además, un `ref` bloquea el segundo envío),
+   reintentos tras un error de red o una recarga durante el cobro reutilizan la clave, y `create_sale`
+   devuelve la venta existente. El carrito vive en `sessionStorage`, así que la terminal se monta solo en
+   el navegador (`useSyncExternalStore`) para evitar errores de hidratación.
+6. **Errores** con el carrito intacto: `insufficient_stock` nombra el producto y lo resalta,
+   `discount_limit_exceeded`, `payments_mismatch` (los precios cambiaron), producto inactivo.
+7. **Venta completada:** número, total, pagos, efectivo recibido y cambio; "New sale" con Enter.
+
+### Atajos de teclado
+`F2` escanear · `F4` cliente · `F8` cobrar · `F9` completar el pago · `Esc` volver al carrito ·
+`Alt+Shift+Backspace` vaciar la venta · `Enter` nueva venta (tras completar). Se evitan F1, F5, F11 y F12
+porque los usa el navegador.
+
+### Historial y utilidad
+- Lista con búsqueda por número, desde/hasta (zona de la tienda), método de pago (embed
+  `sale_payments!inner` filtrado) y cajero; paginación.
+- **Utilidad = (total − impuesto) − Σ(cantidad × costo copiado en `sale_item_costs`)**. Solo se pide a la
+  BD para owner/admin; para un cajero, RLS devolvería vacío igualmente (probado). Las devoluciones (Fase 7)
+  la ajustarán.
+
+### Concurrencia (probada)
+Dos sesiones distintas (owner y cajero) venden a la vez el último artículo de 10 productos (20 peticiones
+simultáneas, cada una en su propia conexión de PostgREST): siempre gana exactamente una por producto, la
+otra recibe `insufficient_stock`, el stock queda en 0 y `stock = Σ movimientos`. 5 envíos paralelos con la
+misma clave registran una sola venta.
+
 ## 5. Estructura de carpetas (propuesta)
 
 ```

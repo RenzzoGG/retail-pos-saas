@@ -89,14 +89,17 @@ mercancía, historial de importaciones. Decisión: actualizar existentes se elig
 - [x] Pruebas: pgTAP (`011_import`), unitarias del parser/validador y límites, integración (incluye 600
       productos) y E2E (plantilla, vista previa, reporte, confirmación).
 
-## Fase 6 — Punto de venta
+## Fase 6 — Punto de venta ✅ terminada
 **Objetivos:** pantalla de venta rápida, búsqueda y escaneo con lector USB, carrito, descuentos por
-línea y globales, pagos en efectivo/tarjeta/transferencia (y mixtos), cambio, venta vía `create_sale`.
+línea y globales (en % o monto, con límite para el cajero), pagos en efectivo/tarjeta/transferencia (y
+mixtos), cambio, venta vía `create_sale` con idempotencia, historial de ventas.
 **Terminado cuando:**
-- [ ] Escanear un código agrega el producto sin usar el ratón; atajos de teclado para cobrar.
-- [ ] Totales calculados en el servidor; el cajero no puede alterar precios.
-- [ ] Prueba de concurrencia real (dos conexiones simultáneas, Vitest + `postgres`) del último artículo; idempotencia ante doble clic desde la UI (la lógica en BD ya está probada en la Fase 2).
-- [ ] `stock = Σ stock_movements` tras las pruebas.
+- [x] Escanear un código agrega el producto sin usar el ratón; atajos de teclado para cobrar.
+- [x] Totales calculados en el servidor; el cajero no puede alterar precios ni superar su límite de descuento.
+- [x] Prueba de concurrencia real (dos sesiones simultáneas vía PostgREST, 10 productos a la vez) del
+      último artículo; idempotencia ante doble clic desde la UI (E2E) y en paralelo (integración).
+- [x] `stock = Σ stock_movements` tras las pruebas.
+- [x] Historial de ventas con filtros; utilidad solo para owner/admin.
 
 ## Fase 7 — Tickets PDF, devoluciones y clientes
 **Objetivos:** ticket PDF de 80 mm (reimprimible), devoluciones parciales/totales ligadas a la venta

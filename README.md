@@ -70,6 +70,13 @@ Stop everything with `npm run docker:down` and `npm run supabase:stop`.
 | `db:types` | Regenerate `src/lib/supabase/database.types.ts` from the local database |
 | `docker:dev` / `docker:down` | App in Docker Compose (dev mode) |
 
+### Point of sale
+
+**POS** (`/app/pos`) works with the keyboard and USB barcode scanners: `F2` scan, `F4` customer, `F8` charge,
+`F9` complete payment, `Esc` back to cart, `Alt+Shift+Backspace` clear the sale, `Enter` new sale.
+Try the demo barcodes `2000000000015` (USB-C cable) or `2000000000053` (20 W charger). Cashiers can
+discount up to the store limit (10 % by default, editable in Settings).
+
 ### Sample import files
 
 `docs/samples/` has files to try **Products → Import** (owner/admin):
