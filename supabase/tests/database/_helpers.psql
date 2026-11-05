@@ -1,0 +1,105 @@
+-- Shared helpers for pgTAP tests. Included with \ir from each *.test.sql file,
+-- which runs inside BEGIN ... ROLLBACK: nothing here persists in the database.
+--
+-- Acting as a user: PostgREST verifies the JWT and then runs the query as role
+-- "authenticated" with request.jwt.claims set; auth.uid() reads "sub" from it.
+-- tests.authenticate_as() reproduces exactly that inside the transaction, for
+-- users created by the test itself. No keys, passwords or tokens are involved.
+
+create extension if not exists pgtap with schema extensions;
+
+create schema tests;
+grant usage on schema tests to anon, authenticated, service_role;
+
+-- Creates an auth user (and, through the trigger, its profile). Returns its id.
+create function tests.create_user(p_email text, p_id uuid default gen_random_uuid())
+returns uuid language plpgsql as $$
+begin
+  insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+                          email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+                          created_at, updated_at)
+  values ('00000000-0000-0000-0000-000000000000', p_id, 'authenticated', 'authenticated',
+          p_email, '', now(), '{}', '{}', now(), now());
+  return p_id;
+end $$;
+
+create function tests.authenticate_as(p_user_id uuid)
+returns void language plpgsql as $$
+begin
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', p_user_id, 'role', 'authenticated')::text, true);
+end $$;
+
+create function tests.act_as_service_role()
+returns void language plpgsql as $$
+begin
+  perform set_config('role', 'service_role', true);
+  perform set_config('request.jwt.claims', '{"role":"service_role"}', true);
+end $$;
+
+-- Back to the test runner (postgres): sees everything, used to set up data and
+-- to verify the real state after an attempted forbidden change.
+create function tests.reset_role()
+returns void language plpgsql as $$
+begin
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '', true);
+end $$;
+
+-- Store with its owner. tax_rate 0.0825 and prices including tax by default.
+create function tests.create_store(
+  p_owner uuid, p_slug text, p_id uuid default gen_random_uuid(),
+  p_tax_rate numeric default 0.0825, p_prices_include_tax boolean default true
+) returns uuid language plpgsql as $$
+begin
+  insert into public.stores (id, name, slug, currency, tax_rate, prices_include_tax, created_by)
+  values (p_id, initcap(replace(p_slug, '-', ' ')), p_slug, 'USD', p_tax_rate, p_prices_include_tax, p_owner);
+  insert into public.store_members (store_id, user_id, role) values (p_id, p_owner, 'owner');
+  return p_id;
+end $$;
+
+create function tests.add_member(p_store uuid, p_user uuid, p_role public.store_role)
+returns void language sql as $$
+  insert into public.store_members (store_id, user_id, role) values (p_store, p_user, p_role);
+$$;
+
+-- Product with stock 0 (stock is added with create_stock_entry).
+create function tests.create_product(p_store uuid, p_sku text, p_price numeric, p_id uuid default gen_random_uuid())
+returns uuid language plpgsql as $$
+begin
+  insert into public.products (id, store_id, sku, name, sale_price)
+  values (p_id, p_store, p_sku, 'Product ' || p_sku, p_price);
+  return p_id;
+end $$;
+
+-- Adds stock as the given manager through the real function.
+create function tests.receive(p_as uuid, p_store uuid, p_product uuid, p_qty int, p_cost numeric)
+returns uuid language plpgsql as $$
+declare v uuid;
+begin
+  perform tests.authenticate_as(p_as);
+  v := public.create_stock_entry(p_store,
+         jsonb_build_array(jsonb_build_object('product_id', p_product, 'quantity', p_qty, 'unit_cost', p_cost)));
+  perform tests.reset_role();
+  return v;
+end $$;
+
+-- One-product sale paid in cash for the exact total, as the given member.
+create function tests.sell(p_as uuid, p_store uuid, p_product uuid, p_qty int)
+returns uuid language plpgsql as $$
+declare v_price numeric; v_total numeric; v uuid;
+begin
+  select sale_price * p_qty into v_price from public.products where id = p_product;
+  select case when prices_include_tax then v_price else v_price + round(v_price * tax_rate, 2) end
+    into v_total from public.stores where id = p_store;
+  perform tests.authenticate_as(p_as);
+  v := public.create_sale(p_store,
+         jsonb_build_array(jsonb_build_object('product_id', p_product, 'quantity', p_qty)),
+         jsonb_build_array(jsonb_build_object('method', 'cash', 'amount', v_total)),
+         gen_random_uuid());
+  perform tests.reset_role();
+  return v;
+end $$;
+
+grant execute on all functions in schema tests to anon, authenticated, service_role;

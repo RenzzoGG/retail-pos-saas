@@ -19,7 +19,10 @@
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
     "docker:dev": "docker compose up --build",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "test:db": "supabase test db",
+    "db:lint": "supabase db lint --level warning --fail-on error",
+    "db:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
