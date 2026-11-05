@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-styles";
 import { formatMoney } from "@/lib/money";
 import { type CheckoutResult, checkoutAction, lookupSaleProduct, searchSaleCustomers, searchSaleProducts } from "../actions";
 import { type CartItem, type Discount, cartTotals, exceedsDiscountLimit } from "../calc";
@@ -685,10 +686,16 @@ function SaleCompleted({ sale, currency, onNewSale }: { sale: SaleDetail; curren
         <Button autoFocus onClick={onNewSale} className="px-6 py-3 text-base">
           New sale <kbd className="ml-2 rounded border border-white/40 px-1 text-xs">Enter</kbd>
         </Button>
-        <Link href={`/app/sales/${sale.id}`} className="inline-flex items-center px-4 text-sm text-indigo-600 hover:underline dark:text-indigo-400">
-          View sale
-        </Link>
+        <a href={`/app/sales/${sale.id}/receipt`} target="_blank" rel="noopener" className={buttonClasses("secondary", "py-3")}>
+          Print receipt
+        </a>
+        <a href={`/app/sales/${sale.id}/receipt?download=1`} className={buttonClasses("secondary", "py-3")}>
+          Download PDF
+        </a>
       </div>
+      <Link href={`/app/sales/${sale.id}`} className="inline-block text-sm text-indigo-600 hover:underline dark:text-indigo-400">
+        View sale
+      </Link>
     </section>
   );
 }
