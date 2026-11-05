@@ -101,6 +101,7 @@ test("owner onboards, invites a cashier who accepts, then promotes them", async 
     row.getByRole("button", { name: `Save role for ${member.name}` }).click(),
   ]);
   await expect(row.getByLabel(`Role for ${member.name}`, { exact: true })).toHaveValue("admin");
+  await expect(row.getByRole("status")).toHaveText("Role updated.");
 
   await memberPage.goto("/app");
   await expect(memberPage.getByTestId("current-role")).toHaveText("Your role: Admin");

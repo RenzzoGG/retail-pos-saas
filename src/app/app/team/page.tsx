@@ -38,7 +38,7 @@ export default async function TeamPage() {
             <ul className="divide-y divide-slate-200 dark:divide-slate-800">
               {members.data.map((m) => (
                 <MemberRow
-                  key={`${m.id}-${m.role}`}
+                  key={m.id}
                   member={m}
                   canManage={canManageRole(store.role, m.role)}
                   roleOptions={assignableRoles(store.role)}

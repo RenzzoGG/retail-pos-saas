@@ -14,6 +14,7 @@ export function MemberRow({ member, canManage, roleOptions }: Props) {
   const [removeState, removeAction] = useActionState(removeMemberAction, initialFormState);
   const label = member.name || member.email || "Unknown user";
   const error = [roleState, removeState].find((s) => s.status === "error")?.message;
+  const saved = roleState.status === "success" ? roleState.message : undefined;
   const options = roleOptions.includes(member.role) ? roleOptions : [member.role, ...roleOptions];
 
   return (
@@ -28,6 +29,11 @@ export function MemberRow({ member, canManage, roleOptions }: Props) {
             {error}
           </p>
         ) : null}
+        {saved && !error ? (
+          <p role="status" className="mt-1 text-sm text-green-700 dark:text-green-400">
+            {saved}
+          </p>
+        ) : null}
       </div>
       {canManage ? (
         <div className="flex flex-wrap items-end gap-2">
@@ -38,6 +44,8 @@ export function MemberRow({ member, canManage, roleOptions }: Props) {
                 Role for {label}
               </label>
               <select
+                // Re-mount with the role the server confirmed (after a save or an error).
+                key={`${member.role}:${roleState.status}:${roleState.message ?? ""}`}
                 id={`role-${member.id}`}
                 name="role"
                 defaultValue={member.role}
