@@ -11,6 +11,7 @@ import { type CartItem, type Discount, cartTotals, exceedsDiscountLimit } from "
 import { METHOD_LABELS } from "../labels";
 import type { CustomerOption, SaleDetail, SaleProduct } from "../service";
 import { CheckoutDialog, type PaymentDraft } from "./checkout-dialog";
+import { NewCustomerDialog } from "./new-customer-dialog";
 
 export type PosSettings = {
   storeId: string;
@@ -73,6 +74,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
   const [scanMessage, setScanMessage] = useState<{ tone: "error" | "info"; text: string } | null>(null);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>([]);
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [isLooking, startLookup] = useTransition();
   const [isSubmitting, startSubmit] = useTransition();
   const submitting = useRef(false);
@@ -253,6 +255,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
   // Keyboard shortcuts (F1, F5, F11, F12 are left to the browser).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (creatingCustomer) return; // the customer dialog handles its own keys
       if (done) {
         if (e.key === "Enter" || e.key === "F2") {
           e.preventDefault();
@@ -282,7 +285,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [done, checkoutOpen, openCheckout, newSale, clearSale]);
+  }, [done, checkoutOpen, creatingCustomer, openCheckout, newSale, clearSale]);
 
   const visibleSuggestions = code.trim().length >= 2 ? suggestions : [];
   const visibleCustomers = customerQuery.trim().length >= 2 && !customer ? customerOptions : [];
@@ -451,6 +454,9 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
                 placeholder="Name, document, phone or email"
                 className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900"
               />
+              <Button type="button" variant="ghost" className="px-0 text-sm" onClick={() => setCreatingCustomer(true)}>
+                + New customer
+              </Button>
               {visibleCustomers.length > 0 ? (
                 <ul aria-label="Customer suggestions" className="divide-y divide-slate-200 rounded-md border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
                   {visibleCustomers.map((c) => (
@@ -543,6 +549,22 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
           Charge
         </Button>
       </div>
+
+      {creatingCustomer ? (
+        <NewCustomerDialog
+          initialName={customerQuery}
+          onClose={() => {
+            setCreatingCustomer(false);
+            customerRef.current?.focus();
+          }}
+          onCreated={(c) => {
+            changeCart(() => setCustomer(c));
+            setCustomerQuery("");
+            setCreatingCustomer(false);
+            setTimeout(() => scanRef.current?.focus(), 0);
+          }}
+        />
+      ) : null}
 
       {checkoutOpen && payments ? (
         <CheckoutDialog

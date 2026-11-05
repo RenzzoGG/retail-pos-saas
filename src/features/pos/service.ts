@@ -67,6 +67,7 @@ export async function searchCustomers(db: Db, storeId: string, text: string, lim
     .from("customers")
     .select("id, name, document_id, phone, email")
     .eq("store_id", storeId)
+    .is("deleted_at", null)
     .or(`name.ilike."%${term}%",document_id.ilike."%${term}%",phone.ilike."%${term}%",email.ilike."%${term}%"`)
     .order("name")
     .limit(limit);
