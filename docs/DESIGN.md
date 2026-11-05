@@ -530,14 +530,63 @@ porque los usa el navegador.
 - Lista con búsqueda por número, desde/hasta (zona de la tienda), método de pago (embed
   `sale_payments!inner` filtrado) y cajero; paginación.
 - **Utilidad = (total − impuesto) − Σ(cantidad × costo copiado en `sale_item_costs`)**. Solo se pide a la
-  BD para owner/admin; para un cajero, RLS devolvería vacío igualmente (probado). Las devoluciones (Fase 7)
-  la ajustarán.
+  BD para owner/admin; para un cajero, RLS devolvería vacío igualmente (probado). Desde la Fase 7 se
+  ajusta con las devoluciones (ver 4e).
 
 ### Concurrencia (probada)
 Dos sesiones distintas (owner y cajero) venden a la vez el último artículo de 10 productos (20 peticiones
 simultáneas, cada una en su propia conexión de PostgREST): siempre gana exactamente una por producto, la
 otra recibe `insufficient_stock`, el stock queda en 0 y `stock = Σ movimientos`. 5 envíos paralelos con la
 misma clave registran una sola venta.
+
+## 4e. Tickets PDF, devoluciones y clientes (implementado en la Fase 7)
+
+### Tickets PDF de 80 mm — librería: pdfkit 0.20.2
+Mantenida, sin dependencias nativas, genera en el servidor (Node) y trae las 14 fuentes estándar de PDF
+(no hay que descargar fuentes). Descartadas: `pdf-lib` (sin mantenimiento desde 2022), jsPDF (orientada
+al navegador, pesada), `@react-pdf/renderer` (usa pdfkit por debajo y suma React). Va en
+`serverExternalPackages` (no se empaqueta) y sus métricas de fuentes (`pdfkit/js/data/*.afm`) se añaden
+al build standalone con `outputFileTracingIncludes`, porque pdfkit las lee con `fs` y el trazado no las ve.
+
+- **Tres capas** en `src/features/receipts/`: `receipt-data.ts` copia de la venta **solo** los campos
+  imprimibles (los tipos `SaleReceiptData`/`ReturnReceiptData` no tienen costo ni utilidad, así que no se
+  pueden filtrar por error); `layout.ts` convierte eso en líneas de texto de 42 columnas (puro, probado con
+  Vitest); `pdf.ts` dibuja las líneas con Courier 8 pt en una página de **80 mm (226.77 pt)** de ancho,
+  márgenes de 4 mm y alto ajustado al contenido (rollo térmico).
+- **Ticket de venta:** tienda, número, fecha y hora en la zona de la tienda, cajero, cliente, renglones
+  (cantidad × precio, descuento), subtotal, descuentos, impuesto (incluido o añadido), total, pagos,
+  efectivo recibido, cambio, pie configurable y, al reimprimir, sección **RETURNS** con el total neto.
+- **Comprobante de devolución** aparte: venta original, quién, renglones devueltos (y si volvieron al
+  stock), motivo, reembolso y método.
+- **Route Handlers** `GET /app/sales/[id]/receipt` y `/app/sales/[id]/returns/[returnId]/receipt`: sesión
+  + tienda activa + RLS (401/404). `?download=1` → `attachment`; sin él, `inline` para imprimir desde el
+  visor del navegador. `Cache-Control: private, no-store`.
+
+### Devoluciones
+- Solo **owner/admin** (Server Action con `requireRole` + `create_return` comprueba el rol en la BD). Desde
+  el detalle de la venta: cantidad por renglón (máx. vendido − devuelto), casilla **"Return to stock"**
+  (marcada por defecto), motivo y método de reembolso, con vista previa del reembolso.
+- **Reembolso proporcional** (`create_return`, replicado en `src/features/returns/calc.ts` para la vista
+  previa): `round(total × total_renglón × cantidad / (vendidas × subtotal))`, es decir, la parte del
+  renglón en lo que el cliente pagó (descuentos e impuesto incluidos). Cuando la devolución completa la
+  venta, se reembolsa **exactamente lo que falta**, para que la suma de reembolsos sea el total sin
+  centavos perdidos por redondeo.
+- **Merma:** con la casilla desmarcada se reembolsa pero **no** sube el stock ni se crea movimiento
+  (`return_items.restocked = false`); el costo de esa unidad sigue contando como pérdida.
+- La venta pasa a `partially_returned` o `returned`; el historial lo muestra. El ledger `stock_movements`
+  registra cada reposición (`stock = Σ movimientos`, probado).
+- **Utilidad tras devoluciones** (`src/features/sales/profit.ts`):
+  `(total − impuesto) × (total − reembolsado) / total − (Σ costo vendido − Σ costo de lo repuesto)`.
+
+### Clientes
+- `/app/customers` (búsqueda por nombre, teléfono, correo o documento; paginación), `/new` y `/[id]`
+  (datos editables, compras con sus devoluciones, total gastado **neto de reembolsos**, última compra).
+- Crear y editar: todos los miembros. **Borrar: solo owner/admin** vía `delete_customer` (definer): sin
+  ventas se borra; **con ventas se archiva** (`deleted_at`) para no romper el historial. El cajero no puede
+  escribir `deleted_at` (sin grant de columna). Los archivados no aparecen en listas ni búsquedas del POS
+  y `create_sale` los rechaza.
+- POS: "+ New customer" abre un `<dialog>` rápido (nombre, teléfono, correo) que crea y selecciona al
+  cliente sin perder la venta; mientras está abierto, los atajos globales se desactivan.
 
 ## 5. Estructura de carpetas (propuesta)
 

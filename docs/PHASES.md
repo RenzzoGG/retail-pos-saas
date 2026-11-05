@@ -101,14 +101,16 @@ mixtos), cambio, venta vía `create_sale` con idempotencia, historial de ventas.
 - [x] `stock = Σ stock_movements` tras las pruebas.
 - [x] Historial de ventas con filtros; utilidad solo para owner/admin.
 
-## Fase 7 — Tickets PDF, devoluciones y clientes
+## Fase 7 — Tickets PDF, devoluciones y clientes ✅ terminada
 **Objetivos:** ticket PDF de 80 mm (reimprimible), devoluciones parciales/totales ligadas a la venta
 original vía `create_return`, CRUD de clientes con historial de compras.
 **Terminado cuando:**
-- [ ] El PDF tiene ancho de 80 mm y contiene tienda, número, ítems, pagos, cambio y pie configurable.
-- [ ] No se puede devolver más de lo vendido menos lo ya devuelto (pruebas); el stock se repone.
-- [ ] Solo owner/admin pueden registrar devoluciones; el cajero es rechazado en servidor y BD (pruebas).
-- [ ] La ficha del cliente muestra sus compras y devoluciones.
+- [x] El PDF tiene ancho de 80 mm y contiene tienda, número, ítems, pagos, cambio y pie configurable
+      (sin costos ni utilidad; probado en integración y E2E sobre el build standalone).
+- [x] No se puede devolver más de lo vendido menos lo ya devuelto (pruebas); el stock se repone, salvo
+      las mermas marcadas como "no reponer".
+- [x] Solo owner/admin pueden registrar devoluciones; el cajero es rechazado en servidor y BD (pruebas).
+- [x] La ficha del cliente muestra sus compras y devoluciones; la utilidad descuenta las devoluciones.
 
 ## Fase 8 — Dashboard y reportes
 **Objetivos:** ventas diarias y mensuales, utilidad (solo owner/admin), productos más vendidos,

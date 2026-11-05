@@ -63,7 +63,7 @@ Stop everything with `npm run docker:down` and `npm run supabase:stop`.
 | `db:generate` / `db:check` | Generate / validate Drizzle migrations into `supabase/migrations` |
 | `db:migrate` / `db:reset` | Apply pending migrations / rebuild the local database and re-run the seed |
 | `test:integration` | Integration tests against local Supabase, signed in as the demo users |
-| `test:e2e` | Playwright E2E (Chromium) on the production build: sign-up → store → invite → accept → change role |
+| `test:e2e` | Playwright E2E (Chromium) on the production build: onboarding, inventory, import, POS, receipts, returns and customers |
 | `dev:local` | `next dev` with the local Supabase public URL/key injected at runtime |
 | `test:db` | pgTAP database tests: RLS, tenant isolation, roles, stock, audit log |
 | `db:lint` | Lint SQL functions (`supabase db lint`) |
@@ -76,6 +76,11 @@ Stop everything with `npm run docker:down` and `npm run supabase:stop`.
 `F9` complete payment, `Esc` back to cart, `Alt+Shift+Backspace` clear the sale, `Enter` new sale.
 Try the demo barcodes `2000000000015` (USB-C cable) or `2000000000053` (20 W charger). Cashiers can
 discount up to the store limit (10 % by default, editable in Settings).
+
+After a sale, **Print receipt** / **Download PDF** give an 80 mm thermal ticket (also from the sale
+detail, to reprint). Owners and admins register **returns** from the sale detail: units per line,
+“Return to stock” (uncheck it for damaged items), reason and refund method; each return has its own
+PDF receipt. **Customers** (`/app/customers`) can be created from the POS with “+ New customer”.
 
 ### Sample import files
 
