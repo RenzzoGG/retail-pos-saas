@@ -3,17 +3,9 @@ import { inject } from "vitest";
 import type { Actor } from "@/features/team/service";
 import type { StoreRole } from "@/lib/permissions";
 import type { Db } from "@/lib/services/result";
+import { DEMO_PASSWORD, DEMO_STORE_ID, USERS } from "../fixtures/demo";
 
-/** Demo users from supabase/seed.sql. Local-only demo password, documented in the README. */
-export const DEMO_PASSWORD = "stocktill-demo";
-export const DEMO_STORE_ID = "b0000000-0000-4000-8000-000000000001";
-export const OTHER_STORE_ID = "b0000000-0000-4000-8000-000000000002";
-export const USERS = {
-  owner: { email: "owner@demo.stocktill.test", id: "a0000000-0000-4000-8000-000000000001" },
-  admin: { email: "admin@demo.stocktill.test", id: "a0000000-0000-4000-8000-000000000002" },
-  cashier: { email: "cashier@demo.stocktill.test", id: "a0000000-0000-4000-8000-000000000003" },
-  otherOwner: { email: "owner@other.stocktill.test", id: "a0000000-0000-4000-8000-000000000004" },
-} as const;
+export { DEMO_PASSWORD, DEMO_STORE_ID, OTHER_STORE_ID, USERS } from "../fixtures/demo";
 
 /** A client signed in as a demo user: exactly what the app uses for that user (RLS applies). */
 export async function signInAs(user: keyof typeof USERS): Promise<Db> {
