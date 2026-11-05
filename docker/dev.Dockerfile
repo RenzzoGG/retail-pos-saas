@@ -11,7 +11,9 @@ RUN chown node:node /app
 # so files created through the bind mount keep the right owner).
 USER node
 
+# vendor/ holds dependencies installed from local tarballs (see vendor/README.md).
 COPY --chown=node:node package.json package-lock.json ./
+COPY --chown=node:node vendor ./vendor
 RUN npm ci --no-audit --no-fund
 
 # Pre-create .next so the anonymous volume mounted there is owned by "node".
