@@ -45,3 +45,33 @@ export function getServerSupabaseUrl(): string {
  * browser (127.0.0.1) and break the session.
  */
 export const SUPABASE_AUTH_COOKIE = "sb-stocktill-auth-token";
+
+export type SmtpConfig = {
+  host: string;
+  port: number;
+  user: string | undefined;
+  pass: string | undefined;
+  from: string;
+};
+
+/**
+ * SMTP settings for app emails (invitations). Outside production, missing
+ * values default to the local Mailpit SMTP port exposed by the Supabase CLI
+ * (supabase/config.toml -> [local_smtp] smtp_port = 54325), so `npm run dev`
+ * works without extra configuration. In production they are required.
+ */
+export function getSmtpConfig(): SmtpConfig {
+  const isProduction = process.env.NODE_ENV === "production";
+  const host = process.env.SMTP_HOST || (isProduction ? "" : "127.0.0.1");
+  const port = Number(process.env.SMTP_PORT || (isProduction ? "" : "54325"));
+  if (!host || !Number.isInteger(port) || port <= 0) {
+    throw new Error("Missing SMTP_HOST / SMTP_PORT. See .env.example.");
+  }
+  return {
+    host,
+    port,
+    user: process.env.SMTP_USER || undefined,
+    pass: process.env.SMTP_PASS || undefined,
+    from: process.env.EMAIL_FROM || "Stocktill <no-reply@stocktill.test>",
+  };
+}
