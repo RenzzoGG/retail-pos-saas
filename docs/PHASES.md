@@ -65,15 +65,17 @@ Regla decidida: **solo el owner gestiona admins**; el admin solo invita, cambia 
 - [x] Playwright adelantado: prueba E2E del flujo completo en Chromium.
 - [ ] Jobs de CI pasan en GitHub (Actions bloqueado temporalmente en la cuenta).
 
-## Fase 4 — Inventario e historial de actividad
-**Objetivos:** CRUD de productos (SKU, código de barras, precios, umbral de stock bajo), entradas de
-mercancía vía `create_stock_entry` (ya existe, Fase 2), alertas de stock bajo y vista del historial
-(los triggers de `activity_log` ya existen desde la Fase 2).
+## Fase 4 — Inventario e historial de actividad ✅ terminada (CI de GitHub pendiente)
+**Objetivos:** catálogo con búsqueda/filtros/orden/paginación en el servidor, CRUD de productos (borrado
+lógico), entradas de mercancía con escaneo vía `create_stock_entry`, movimientos por producto, alertas de
+stock bajo, historial de actividad con filtros. Decisiones: costo solo por entradas (promedio ponderado),
+zona horaria por tienda.
 **Terminado cuando:**
-- [ ] Owner/admin crean, editan y eliminan (soft delete) productos; el cajero solo consulta sin costos.
-- [ ] El stock solo cambia por `create_stock_entry` (prueba: UPDATE directo falla).
-- [ ] Lista de productos con stock bajo.
-- [ ] Cada insert/update/delete queda en `activity_log` con actor, antes y después (pruebas).
+- [x] Owner/admin crean, editan y eliminan (soft delete) productos; el cajero solo consulta sin costos.
+- [x] El stock solo cambia por entradas/ventas/devoluciones (prueba: UPDATE directo falla).
+- [x] Lista de productos con stock bajo y aviso en el Dashboard.
+- [x] Historial de actividad legible, filtrable y de solo lectura para owner/admin.
+- [x] Pruebas: pgTAP (`010_inventory`), unitarias, integración y E2E (escaneo simulado).
 
 ## Fase 5 — Importación desde Excel
 **Objetivos:** subir `.xlsx`, plantilla descargable, vista previa con validación por fila, reporte de

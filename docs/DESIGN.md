@@ -407,6 +407,41 @@ pgTAP corre en una sola sesión.
 stock está en `stock_movements`). `store_id`/`actor_id` no tienen FK a propósito: el historial es
 inmutable y debe sobrevivir aunque se borre la tienda o el usuario.
 
+## 4b. Inventario e historial (implementado en la Fase 4)
+
+### Rutas
+| Ruta | Quién | Qué |
+|---|---|---|
+| `/app/products` | todos | Catálogo: búsqueda (nombre, SKU o código), categoría, "Low stock only", orden por columnas, paginación en el servidor. Costo y margen solo para owner/admin |
+| `/app/products/new`, `/app/products/[id]` | owner/admin | Crear/editar/borrar (lógico) y libro de movimientos del producto |
+| `/app/products/receive` | owner/admin | Entrada de mercancía con escaneo de código de barras |
+| `/app/products/entries(/[id])` | owner/admin | Historial y detalle de entradas |
+| `/app/activity` | owner/admin | Historial de actividad con filtros (usuario, acción, fechas) y paginación |
+| `/app` | todos | Aviso de stock bajo con enlace a la lista filtrada |
+
+### Decisiones
+- **Costo solo por entradas:** el costo es el promedio ponderado que calcula `create_stock_entry`; el
+  formulario de producto lo muestra pero no lo edita. Sin entradas, el costo es "—".
+- **Margen sobre el precio neto:** si los precios incluyen impuesto, el impuesto no es ingreso:
+  `margen = precio / (1 + tasa) − costo` (`src/lib/money.ts#marginInfo`, aritmética en centavos).
+- **`products.is_low_stock`** es una columna **generada** (`stock <= low_stock_threshold`): PostgREST
+  no puede comparar dos columnas en un filtro, así que la condición se materializa para filtrar y contar.
+  Stock 0 cuenta como bajo. `app.log_activity` la ignora (como `stock`) para que una venta no aparezca
+  como edición del producto.
+- **Zona horaria por tienda** (`stores.timezone`, IANA, validada por trigger contra
+  `pg_timezone_names`): fechas mostradas y filtros "desde/hasta" se calculan en la hora de la tienda
+  (`src/lib/timezone.ts`, solo `Intl`). La Fase 8 la reutiliza para ventas diarias.
+- **Costos y RLS:** la lista pide `product_costs(cost_price)` solo para managers; aunque un cajero lo
+  pidiera, RLS devuelve `[]` (probado).
+- **Búsqueda segura:** el texto del usuario se limpia (`escapeSearchTerm`) y va entre comillas en el
+  filtro `or(...)` de PostgREST, así no puede alterar la consulta (probado con un intento de inyección).
+- **Escaneo:** un lector USB teclea el código y pulsa Enter. En "Scan or search", Enter busca el código o
+  SKU **exacto**; si el producto ya está en la lista suma 1. El campo se vacía en el mismo momento del
+  Enter (escaneos seguidos no se pisan) y está fuera del `<form>` (un Enter nunca envía la entrada).
+- **Historial legible:** `src/features/activity/describe.ts` convierte el JSON antes/después en frases
+  ("Product “X” updated: sale price 9.99 → 12.50"), ocultando campos internos. Actor desconocido =
+  "Former member"; sin actor = "System".
+
 ## 5. Estructura de carpetas (propuesta)
 
 ```

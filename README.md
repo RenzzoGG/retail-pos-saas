@@ -48,7 +48,7 @@ Supabase Studio (browse tables, policies and data): http://localhost:54323
 | `cashier@demo.stocktill.test` | cashier | Stocktill Demo Electronics |
 | `owner@other.stocktill.test` | owner | Other Shop (EUR, 21 % tax added) |
 
-Password for all of them: `stocktill-demo`. The demo store has 20 electronics accessories,
+Password for all of them: `stocktill-demo`. The demo store uses the `America/New_York` time zone. The demo store has 20 electronics accessories,
 3 customers and 2 sales.
 
 Stop everything with `npm run docker:down` and `npm run supabase:stop`.
