@@ -22,6 +22,20 @@
       "when": 1793845617921,
       "tag": "20261105022657_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793848121383,
+      "tag": "20261105030841_profile_email_pending_invites",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793848123047,
+      "tag": "20261105030843_auth_team",
+      "breakpoints": true
     }
   ]
 }

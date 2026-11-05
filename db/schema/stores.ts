@@ -9,6 +9,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { authUsers } from "drizzle-orm/supabase";
@@ -47,6 +48,8 @@ export const profiles = pgTable("profiles", {
     .primaryKey()
     .references(() => authUsers.id, { onDelete: "cascade" }),
   fullName: text("full_name"),
+  /** Copied from auth.users by trigger so teammates can see it (auth.users is not exposed). */
+  email: text("email"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -92,5 +95,9 @@ export const invitations = pgTable(
     check("invitations_role_not_owner", sql`${t.role} <> 'owner'`),
     check("invitations_email_lowercase", sql`${t.email} = lower(${t.email}) and position('@' in ${t.email}) > 1`),
     index("invitations_store_id_idx").on(t.storeId),
+    // At most one pending invitation per email and store (resending replaces it).
+    uniqueIndex("invitations_store_email_pending_key")
+      .on(t.storeId, t.email)
+      .where(sql`${t.acceptedAt} is null`),
   ],
 );

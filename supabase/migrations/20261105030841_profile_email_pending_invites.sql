@@ -1,0 +1,2 @@
+ALTER TABLE "profiles" ADD COLUMN "email" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "invitations_store_email_pending_key" ON "invitations" USING btree ("store_id","email") WHERE "invitations"."accepted_at" is null;

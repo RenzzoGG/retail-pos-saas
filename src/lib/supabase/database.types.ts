@@ -101,14 +101,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "created_at": string,"full_name": string | null,"id": string,"updated_at": string
+                    "created_at": string,"email": string | null,"full_name": string | null,"id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"full_name"?: string | null,"id": string,"updated_at"?: string
+                    "created_at"?: string,"email"?: string | null,"full_name"?: string | null,"id": string,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"full_name"?: string | null,"id"?: string,"updated_at"?: string
+                    "created_at"?: string,"email"?: string | null,"full_name"?: string | null,"id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -391,7 +391,10 @@ isOneToOne: true
             [_ in never]: never
           }
           Functions: {
-            "create_return":
+            "accept_invitation":
+{ Args: { "p_token": string }; Returns: string
+                           },
+"create_return":
 { Args: { "p_items": Json,"p_reason"?: string,"p_refund_method"?: Database["public"]['Enums']["payment_method"],"p_sale_id": string }; Returns: string
                            },
 "create_sale":
@@ -399,6 +402,14 @@ isOneToOne: true
                            },
 "create_stock_entry":
 { Args: { "p_items": Json,"p_note"?: string,"p_store_id": string,"p_supplier"?: string }; Returns: string
+                           },
+"create_store":
+{ Args: { "p_currency"?: string,"p_name": string,"p_prices_include_tax"?: boolean,"p_tax_rate"?: number }; Returns: string
+                           },
+"invitation_preview":
+{ Args: { "p_token": string }; Returns: {
+              "email": string,"expires_at": string,"role": Database["public"]['Enums']["store_role"],"status": string,"store_name": string
+            }[]
                            }
           }
           Enums: {

@@ -105,9 +105,9 @@ select lives_ok(
 select throws_ok(
   $$ update public.store_members set role = 'owner' where user_id = '11000000-0000-4000-8000-000000000004' $$,
   '42501', null, 'admin cannot promote anyone to owner');
-select throws_ok(
-  $$ update public.store_members set role = 'owner' where user_id = '11000000-0000-4000-8000-000000000002' $$,
-  '42501', null, 'admin cannot promote itself to owner');
+-- Since phase 3 an admin cannot even see its own row as updatable (admins are
+-- managed by owners only), so this affects 0 rows; verified below.
+update public.store_members set role = 'owner' where user_id = '11000000-0000-4000-8000-000000000002';
 delete from public.store_members where user_id = '11000000-0000-4000-8000-000000000001';
 select lives_ok(
   format($$ select public.create_return(%L, (select jsonb_build_array(jsonb_build_object('sale_item_id', si.id, 'quantity', 1))
@@ -118,6 +118,7 @@ select lives_ok(
 select tests.reset_role();
 select is((select sale_price from public.products where id = '31000000-0000-4000-8000-000000000001'), 25.00::numeric, 'admin price change applied');
 select is((select count(*)::int from public.store_members where user_id = '11000000-0000-4000-8000-000000000001'), 1, 'admin cannot remove the owner');
+select is((select role::text from public.store_members where user_id = '11000000-0000-4000-8000-000000000002'), 'admin', 'admin cannot promote itself to owner');
 
 -- ===================================================================== OWNER
 select tests.authenticate_as('11000000-0000-4000-8000-000000000001');
