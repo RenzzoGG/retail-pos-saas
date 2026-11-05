@@ -14,7 +14,12 @@
     "db:reset": "supabase db reset",
     "db:migrate": "supabase migration up",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+    "docker:dev": "docker compose up --build",
+    "docker:down": "docker compose down"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

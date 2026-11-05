@@ -1,0 +1,37 @@
+# Local development: only the Next.js app runs here.
+# Supabase runs separately with its own CLI (`npm run supabase:start`),
+# which publishes its ports on the host (API on 54321, Postgres on 54322).
+name: stocktill
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/dev.Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      # Inside the container 127.0.0.1 is the container itself. The server
+      # reaches Supabase through the host; the browser keeps using
+      # NEXT_PUBLIC_SUPABASE_URL (http://127.0.0.1:54321) from .env.local.
+      SUPABASE_INTERNAL_URL: http://host.docker.internal:54321
+      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
+      NEXT_TELEMETRY_DISABLED: "1"
+    extra_hosts:
+      # Maps host.docker.internal to the host's gateway IP (Docker Engine on Linux/WSL).
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/app
+      # Anonymous volumes: keep the image's node_modules and .next instead of
+      # the host's (native binaries may differ; avoids permission clashes).
+      - /app/node_modules
+      - /app/.next
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
