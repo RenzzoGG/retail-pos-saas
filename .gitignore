@@ -61,3 +61,6 @@ Thumbs.db
 
 # Claude Code (config local del usuario)
 .claude/settings.local.json
+
+# Phase reports (kept locally, not versioned)
+docs/reports/
