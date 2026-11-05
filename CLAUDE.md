@@ -1,7 +1,11 @@
-# CLAUDE.md — POS SaaS multitienda
+# CLAUDE.md — Stocktill (POS SaaS multitienda)
+
+> **Stocktill es una marca ficticia** creada para un proyecto de portafolio. No es un producto comercial
+> ni está asociada a ninguna empresa real.
 
 ## Resumen del proyecto
-SaaS de punto de venta (POS) e inventario para tiendas pequeñas. Proyecto de portafolio.
+**Stocktill**: SaaS de punto de venta (POS) e inventario para tiendas pequeñas. Proyecto de portafolio.
+Repositorio: `retail-pos-saas` (licencia MIT).
 Multitienda: cada negocio se registra y **solo ve sus propios datos** (aislamiento con RLS en PostgreSQL).
 
 Funciones: roles (owner/admin/cashier), inventario con SKU/código de barras y alertas de stock bajo,
@@ -39,8 +43,24 @@ Documentación clave:
 5. **Ambigüedad**: si una decisión es ambigua o tiene varias opciones razonables, preguntar antes de seguir.
 6. **Aprendizaje**: explicar brevemente el porqué de las decisiones técnicas importantes.
 
+## Decisiones confirmadas (Fase 0)
+1. Gestor de paquetes: **npm**.
+2. Acceso a datos: **supabase-js** con el usuario autenticado para leer y escribir (RLS siempre aplica);
+   **Drizzle solo** para el esquema y las migraciones.
+3. **Docker Compose solo para la app**; Supabase corre con su propio CLI.
+4. **Interfaz en inglés.** Moneda, tasa de impuesto y si los precios incluyen impuesto se configuran
+   **por tienda**. La tienda de demo usa **USD con precios que incluyen impuesto**.
+5. **No se permite stock negativo.** Solo **unidades enteras** (sin productos a granel) en esta versión.
+6. **Devoluciones: solo owner y admin**; el cajero no.
+7. Producción: **Supabase Cloud (plan gratuito)** + Railway. El README debe advertir que los proyectos
+   inactivos del plan gratuito se pausan.
+8. Stripe (modo prueba): **un solo plan mensual de 19 USD con 14 días de prueba gratis**.
+9. Repositorio **`retail-pos-saas`**, licencia **MIT**.
+10. Marca: **Stocktill** (ficticia; dejarlo claro en la documentación y el README).
+
 ## Convenciones
-- Documentación y comunicación en español; código, nombres de tablas y commits en inglés.
+- Documentación y comunicación en español; **interfaz de usuario en inglés**; código, nombres de tablas y commits en inglés.
+- Gestor de paquetes: npm (`npm ci` en CI y Docker).
 - Commits con Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `test:`...).
 - Los permisos se validan en el servidor **y** en la base de datos (RLS/funciones), nunca solo en la UI.
 - El stock solo cambia mediante ventas, devoluciones y entradas de mercancía (funciones de BD).

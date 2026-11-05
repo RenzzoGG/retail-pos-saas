@@ -1,6 +1,9 @@
-# Diseño técnico — POS SaaS multitienda
+# Diseño técnico — Stocktill (POS SaaS multitienda)
 
-> Estado: propuesta de la Fase 0. Las decisiones marcadas como **[pendiente]** se confirman antes de la Fase 1.
+> **Stocktill es una marca ficticia** creada para un proyecto de portafolio; no es un producto comercial.
+>
+> Estado: diseño aprobado al cierre de la Fase 0 (decisiones confirmadas por el usuario).
+> Interfaz de usuario en inglés; documentación en español.
 
 ## 1. Arquitectura general
 
@@ -40,14 +43,14 @@ función SQL que hace todo en una sola transacción.
 | | Local (WSL) | Producción |
 |---|---|---|
 | App | Docker Compose (`next dev`) o `npm run dev` | Contenedor en Railway (Dockerfile multi-stage) |
-| Supabase | Supabase CLI (`supabase start`, levanta sus propios contenedores) | Proyecto Supabase cloud |
+| Supabase | Supabase CLI (`supabase start`, levanta sus propios contenedores) | Supabase Cloud, plan gratuito (los proyectos inactivos se pausan) |
 | Stripe | Modo prueba + `stripe listen` para reenviar webhooks | Modo prueba, webhook al dominio de Railway |
 
 *Por qué Supabase CLI y no meter Supabase en nuestro Compose:* el CLI ya orquesta ~10 servicios
 (Postgres, GoTrue, PostgREST, Storage, Studio...) con versiones probadas entre sí; replicarlo a mano en
-Compose es frágil. Compose se usa para la app (y servicios auxiliares si hacen falta). **[pendiente]**
+Compose es frágil. **Decidido:** Compose se usa solo para la app.
 
-### Acceso a datos — recomendación **[pendiente]**
+### Acceso a datos — decidido
 - **Drizzle** define el esquema en TypeScript y genera las migraciones SQL. RLS, funciones y triggers
   se escriben como SQL en migraciones personalizadas (Drizzle permite migraciones "custom").
 - **En runtime** la app consulta con `supabase-js` usando el JWT del usuario: PostgREST ejecuta cada
@@ -62,13 +65,22 @@ Compose es frágil. Compose se usa para la app (y servicios auxiliares si hacen 
 ## 2. Modelo de datos
 
 Convenciones: PK `id uuid default gen_random_uuid()`, `created_at`/`updated_at timestamptz`,
-dinero en `numeric(12,2)`, cantidades en `integer` (o `numeric(12,3)` si se venden productos a granel
-**[pendiente]**). Todas las tablas de negocio llevan `store_id` (clave del aislamiento).
+dinero en `numeric(12,2)`, cantidades en `integer` (solo unidades enteras; no hay productos a granel en
+esta versión). Todas las tablas de negocio llevan `store_id` (clave del aislamiento).
+
+**Impuestos y moneda por tienda:** cada tienda define `currency` (código ISO 4217, p. ej. `USD`),
+`tax_rate` (`numeric(5,4)`, p. ej. `0.0825`) y `prices_include_tax` (boolean).
+- Si `prices_include_tax = true`: `total = Σ líneas`, `tax = total − total / (1 + tax_rate)`.
+- Si es `false`: `tax = subtotal × tax_rate`, `total = subtotal + tax`.
+
+La venta guarda una copia de la tasa y del modo usados (`tax_rate`, `prices_include_tax` en `sales`)
+para que cambiar la configuración no altere ventas pasadas. La tienda de demo usa **USD con precios que
+incluyen impuesto**.
 
 ### Identidad y tiendas
 | Tabla | Columnas principales | Notas |
 |---|---|---|
-| `stores` | id, name, slug, currency, tax_rate, ticket_footer, created_by | Una por negocio |
+| `stores` | id, name, slug, currency, tax_rate, prices_include_tax, ticket_footer, created_by | Una por negocio |
 | `profiles` | id (= `auth.users.id`), full_name, avatar_url | Datos públicos del usuario |
 | `store_members` | store_id → stores, user_id → auth.users, role (`owner`\|`admin`\|`cashier`), active | Único (store_id, user_id). Un usuario puede pertenecer a varias tiendas |
 | `invitations` | store_id, email, role, token_hash, expires_at, accepted_at, invited_by | El token se guarda hasheado |
@@ -87,7 +99,7 @@ dinero en `numeric(12,2)`, cantidades en `integer` (o `numeric(12,3)` si se vend
 | Tabla | Columnas principales | Notas |
 |---|---|---|
 | `customers` | store_id, name, document_id, phone, email | Historial = sus `sales` |
-| `sales` | store_id, number (consecutivo por tienda), customer_id?, cashier_id, subtotal, discount_total, tax_total, total, status (`completed`\|`partially_returned`\|`returned`), idempotency_key | Único (store_id, idempotency_key) |
+| `sales` | store_id, number (consecutivo por tienda), customer_id?, cashier_id, subtotal, discount_total, tax_rate, prices_include_tax, tax_total, total, status (`completed`\|`partially_returned`\|`returned`), idempotency_key | Único (store_id, idempotency_key) |
 | `sale_items` | sale_id, store_id, product_id, product_name, unit_price, quantity, discount, line_total | *Snapshot* del precio: si el producto cambia, la venta no |
 | `sale_item_costs` | sale_item_id (PK), store_id, unit_cost | Snapshot del costo para utilidad; oculto al cajero |
 | `sale_payments` | sale_id, store_id, method (`cash`\|`card`\|`transfer`), amount, received, change | Permite pago mixto |
@@ -98,7 +110,7 @@ dinero en `numeric(12,2)`, cantidades en `integer` (o `numeric(12,3)` si se vend
 | Tabla | Columnas principales | Notas |
 |---|---|---|
 | `activity_log` | store_id, actor_id, table_name, record_id, action (`insert`\|`update`\|`delete`), before jsonb, after jsonb, created_at | Escrita por triggers; solo lectura para owner/admin |
-| `subscriptions` | store_id (único), stripe_customer_id, stripe_subscription_id, status, price_id, current_period_end, cancel_at_period_end | Fuente de verdad: webhooks |
+| `subscriptions` | store_id (único), stripe_customer_id, stripe_subscription_id, status (`trialing`\|`active`\|`past_due`\|`canceled`\|...), price_id, trial_end, current_period_end, cancel_at_period_end | Fuente de verdad: webhooks |
 | `stripe_events` | id (= event.id de Stripe), type, processed_at | Evita procesar un evento dos veces |
 
 ### Relaciones (resumen)
@@ -135,7 +147,8 @@ stores 1─1 subscriptions ; stores 1─N activity_log
 | Crear/editar productos, cambiar precios | ✅ | ✅ | ❌ |
 | Costos y utilidades (`product_costs`, `sale_item_costs`, dashboard de utilidad) | ✅ | ✅ | ❌ |
 | Registrar ventas | ✅ | ✅ | ✅ |
-| Devoluciones | ✅ | ✅ | ❌ (**[pendiente]** ¿permitir con límite?) |
+| Devoluciones | ✅ | ✅ | ❌ |
+| Configurar tienda (moneda, impuestos, ticket) | ✅ | ✅ | ❌ |
 | Entradas de mercancía / importar Excel | ✅ | ✅ | ❌ |
 | Clientes | ✅ | ✅ | ✅ (crear/ver) |
 | Historial de actividad | ✅ | ✅ | ❌ |
@@ -172,7 +185,8 @@ o el usuario pulse "Cobrar" dos veces.
    ```
    Postgres bloquea la fila durante el `update`, así que dos ventas simultáneas se serializan.
    Para evitar interbloqueos, los ítems se procesan ordenados por `product_id`.
-4. **`CHECK (stock >= 0)`** como red de seguridad (**[pendiente]** confirmar que no se permite negativo).
+4. **`CHECK (stock >= 0)`** como red de seguridad: **no se permite stock negativo** (decidido).
+   Las cantidades son `integer` y las funciones rechazan cantidades ≤ 0.
 5. **Libro de movimientos** (`stock_movements`): cada cambio inserta un movimiento. Una prueba verifica
    que `stock = suma de movimientos` (y sirve para auditar).
 6. **Idempotencia:** el cliente genera un `idempotency_key` (UUID) por intento de cobro; si se repite,
@@ -227,7 +241,7 @@ consultas y validaciones de cada módulo, y escala mejor que carpetas gigantes d
 
 | Nivel | Herramienta | Qué cubre |
 |---|---|---|
-| Unitarias | Vitest | Cálculo de totales/descuentos/impuestos, utilidades de dinero, esquemas Zod, parser y validador del Excel, buffer del lector de código de barras |
+| Unitarias | Vitest | Cálculo de totales/descuentos/impuestos (precios con impuesto incluido y sin incluir, redondeo), utilidades de dinero, esquemas Zod, parser y validador del Excel, buffer del lector de código de barras |
 | Base de datos | Vitest + Supabase local | **Aislamiento:** usuario de tienda A no lee/escribe datos de B (cada tabla). **Roles:** cajero no lee costos ni cambia precios. **Stock:** ventas concurrentes del último artículo, idempotencia, devoluciones que exceden lo vendido, `stock = Σ movimientos` |
 | Integración | Vitest | Server Actions con usuarios de prueba; webhook de Stripe con payloads firmados de prueba (`stripe.webhooks.generateTestHeaderString`) |
 | Navegador | Playwright | Registro + crear tienda, invitar cajero, venta con "lector" simulado (tecleo rápido + Enter), devolución, importación Excel, restricción de páginas por rol |
@@ -240,7 +254,7 @@ consultas y validaciones de cada módulo, y escala mejor que carpetas gigantes d
 
 ## 7. Despliegue con Docker en Railway
 
-1. **Dockerfile multi-stage:**
+1. **Dockerfile multi-stage** (npm):
    - `deps`: `node:24-slim`, `npm ci`.
    - `build`: copia código, `next build` con `output: 'standalone'`.
    - `runner`: `node:24-slim`, solo `.next/standalone`, `.next/static` y `public`; usuario no root;
@@ -254,11 +268,23 @@ consultas y validaciones de cada módulo, y escala mejor que carpetas gigantes d
 3. **Railway:** servicio conectado al repo de GitHub, construye con el Dockerfile, variables de entorno
    configuradas en el panel (el usuario las introduce), dominio `*.up.railway.app`, healthcheck en
    `/api/health`.
-4. **Base de datos:** proyecto Supabase cloud (**[pendiente]**). Migraciones con
-   `supabase db push` (paso manual o job de CI con aprobación).
+4. **Base de datos:** Supabase Cloud, **plan gratuito**. Migraciones con `supabase db push` (paso manual
+   o job de CI con aprobación). El README advertirá que los proyectos gratuitos inactivos se pausan y
+   cómo reactivarlos desde el panel de Supabase.
 5. **Stripe:** endpoint de webhook apuntando a `https://<dominio>/api/stripe/webhook` en modo prueba.
 
-## 8. Riesgos y mitigaciones
+## 8. Suscripción (Stripe, modo prueba)
+
+- **Un solo plan:** *Stocktill Monthly*, **19 USD/mes**, con **14 días de prueba gratis**
+  (`subscription_data.trial_period_days = 14` en Checkout).
+- El owner inicia Checkout desde *Billing*; gestiona tarjeta y cancelación en el **Billing Portal**.
+- Eventos procesados: `checkout.session.completed`, `customer.subscription.created|updated|deleted`,
+  `customer.subscription.trial_will_end`, `invoice.payment_failed`.
+- **Acceso según estado:** `trialing` y `active` → acceso completo; `past_due` → acceso con aviso;
+  `canceled`/`unpaid` → solo lectura y página de facturación.
+- El ID del precio llega por variable de entorno (`STRIPE_PRICE_ID`), nunca escrito en el código.
+
+## 9. Riesgos y mitigaciones
 
 | Riesgo | Mitigación |
 |---|---|
@@ -272,6 +298,8 @@ consultas y validaciones de cada módulo, y escala mejor que carpetas gigantes d
 | Impresión térmica 80 mm (márgenes, fuentes) | PDF de ancho fijo 80 mm (~72 mm útiles), prueba en impresora real o emulador; opción de imprimir HTML |
 | Lectores de código de barras (tecleo rápido + Enter, foco) | Captura global con buffer y umbral de tiempo entre teclas; pruebas unitarias |
 | Excel grande o malformado | Límite de tamaño/filas, validación por fila, vista previa antes de confirmar, inserción en una transacción |
-| Límites de planes gratuitos (Supabase pausa proyectos inactivos, créditos de Railway) | Documentarlo en el README; seed de demo reproducible |
+| Supabase Cloud gratuito pausa proyectos inactivos (la demo deja de responder) | Aviso en el README con pasos para reactivarlo; seed de demo reproducible |
+| Créditos limitados de Railway | Documentarlo en el README; imagen pequeña y una sola instancia |
+| Redondeo de impuestos incluidos | Funciones de dinero con pruebas unitarias; redondeo a 2 decimales en un solo lugar |
 | WSL + Docker: memoria y rendimiento | Ajustar `.wslconfig`; código dentro del filesystem de Linux (ya está en `~/proyectos`) |
 | Variables `NEXT_PUBLIC_*` fijadas en build | Build args en Railway; documentarlo |
