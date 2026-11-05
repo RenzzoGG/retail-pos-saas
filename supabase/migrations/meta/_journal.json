@@ -71,6 +71,20 @@
       "when": 1793896877990,
       "tag": "20261105164117_sku_format",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793914335910,
+      "tag": "20261105213215_pos_discount_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793914337074,
+      "tag": "20261105213217_pos",
+      "breakpoints": true
     }
   ]
 }

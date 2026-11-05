@@ -9,6 +9,10 @@ select tests.create_user('cashier@fn.test', '13000000-0000-4000-8000-00000000000
 -- Store with tax INCLUDED in prices (8.25 %).
 select tests.create_store('13000000-0000-4000-8000-000000000001', 'fn-incl', '23000000-0000-4000-8000-000000000001', 0.0825, true);
 select tests.add_member('23000000-0000-4000-8000-000000000001', '13000000-0000-4000-8000-000000000002', 'cashier');
+-- The sale below gives an 11 % discount as a cashier; since phase 6 cashiers
+-- are capped (default 10 %), so this store allows up to 50 %. The cap itself
+-- is tested in 012_pos.
+update public.stores set max_cashier_discount_pct = 50 where id = '23000000-0000-4000-8000-000000000001';
 select tests.create_product('23000000-0000-4000-8000-000000000001', 'P1', 10.00, '33000000-0000-4000-8000-000000000001');
 select tests.create_product('23000000-0000-4000-8000-000000000001', 'P2', 25.00, '33000000-0000-4000-8000-000000000002');
 

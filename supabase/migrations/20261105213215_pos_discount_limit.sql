@@ -1,0 +1,2 @@
+ALTER TABLE "stores" ADD COLUMN "max_cashier_discount_pct" numeric(5, 2) DEFAULT '10' NOT NULL;--> statement-breakpoint
+ALTER TABLE "stores" ADD CONSTRAINT "stores_max_cashier_discount_range" CHECK ("stores"."max_cashier_discount_pct" >= 0 and "stores"."max_cashier_discount_pct" <= 100);

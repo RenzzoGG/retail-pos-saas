@@ -29,6 +29,8 @@ export const stores = pgTable(
     pricesIncludeTax: boolean("prices_include_tax").notNull().default(true),
     /** IANA time zone (e.g. America/New_York): dates, filters and daily reports use it. */
     timezone: text("timezone").notNull().default("UTC"),
+    /** Max total discount a cashier may give, as % of the sale's gross amount (owner/admin: no limit). */
+    maxCashierDiscountPct: numeric("max_cashier_discount_pct", { precision: 5, scale: 2 }).notNull().default("10"),
     ticketFooter: text("ticket_footer"),
     /** Per-store sale counter; only changed by public.create_sale(). */
     lastSaleNumber: integer("last_sale_number").notNull().default(0),
@@ -42,6 +44,10 @@ export const stores = pgTable(
     check("stores_currency_iso", sql`${t.currency} ~ '^[A-Z]{3}$'`),
     check("stores_tax_rate_range", sql`${t.taxRate} >= 0 and ${t.taxRate} < 1`),
     check("stores_last_sale_number_nonneg", sql`${t.lastSaleNumber} >= 0`),
+    check(
+      "stores_max_cashier_discount_range",
+      sql`${t.maxCashierDiscountPct} >= 0 and ${t.maxCashierDiscountPct} <= 100`,
+    ),
   ],
 );
 
