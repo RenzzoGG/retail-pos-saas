@@ -65,7 +65,7 @@ Regla decidida: **solo el owner gestiona admins**; el admin solo invita, cambia 
 - [x] Playwright adelantado: prueba E2E del flujo completo en Chromium.
 - [x] Jobs de CI pasan en GitHub.
 
-## Fase 4 — Inventario e historial de actividad ✅ terminada (CI de GitHub: se verá tras el push)
+## Fase 4 — Inventario e historial de actividad ✅ terminada
 **Objetivos:** catálogo con búsqueda/filtros/orden/paginación en el servidor, CRUD de productos (borrado
 lógico), entradas de mercancía con escaneo vía `create_stock_entry`, movimientos por producto, alertas de
 stock bajo, historial de actividad con filtros. Decisiones: costo solo por entradas (promedio ponderado),
@@ -76,6 +76,7 @@ zona horaria por tienda.
 - [x] Lista de productos con stock bajo y aviso en el Dashboard.
 - [x] Historial de actividad legible, filtrable y de solo lectura para owner/admin.
 - [x] Pruebas: pgTAP (`010_inventory`), unitarias, integración y E2E (escaneo simulado).
+- [x] Jobs de CI pasan en GitHub.
 
 ## Fase 5 — Importación desde Excel
 **Objetivos:** subir `.xlsx`, plantilla descargable, vista previa con validación por fila, reporte de
