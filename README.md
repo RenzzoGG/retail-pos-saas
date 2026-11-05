@@ -28,6 +28,12 @@ npm run docker:dev           # in Docker    -> http://localhost:3000
 
 Health check: `curl http://localhost:3000/api/health` → `{"status":"ok"}`
 
+No `.env.local` yet? `npm run dev:local` starts the app with the local Supabase URL and publishable
+key read at runtime from `supabase status` (nothing is printed or saved).
+
+Emails (sign-up confirmation, password reset, team invitations) are caught by **Mailpit**:
+http://localhost:54324
+
 Supabase Studio (browse tables, policies and data): http://localhost:54323
 
 ### Demo data (local only)
@@ -56,10 +62,20 @@ Stop everything with `npm run docker:down` and `npm run supabase:stop`.
 | `supabase:start` / `supabase:stop` / `supabase:status` | Local Supabase stack |
 | `db:generate` / `db:check` | Generate / validate Drizzle migrations into `supabase/migrations` |
 | `db:migrate` / `db:reset` | Apply pending migrations / rebuild the local database and re-run the seed |
+| `test:integration` | Integration tests against local Supabase, signed in as the demo users |
+| `test:e2e` | Playwright E2E (Chromium): sign-up → store → invite → accept → change role |
+| `dev:local` | `next dev` with the local Supabase public URL/key injected at runtime |
 | `test:db` | pgTAP database tests: RLS, tenant isolation, roles, stock, audit log |
 | `db:lint` | Lint SQL functions (`supabase db lint`) |
 | `db:types` | Regenerate `src/lib/supabase/database.types.ts` from the local database |
 | `docker:dev` / `docker:down` | App in Docker Compose (dev mode) |
+
+### First-time Playwright setup
+
+```bash
+npx playwright install chromium
+sudo npx playwright install-deps chromium   # system libraries (Linux/WSL), once
+```
 
 ## License
 

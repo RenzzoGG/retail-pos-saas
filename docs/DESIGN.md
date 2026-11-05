@@ -246,8 +246,8 @@ erDiagram
 |---|---|---|---|---|---|
 | `stores` | miembro | — | manager (solo columnas de config) | — | La creación llega en la Fase 3 con una función que crea tienda + owner en una transacción |
 | `profiles` | uno mismo o compañeros de tienda | — (trigger) | uno mismo (`full_name`) | — | Ver nombres del equipo sin exponer a usuarios ajenos |
-| `store_members` | miembro | owner; admin si `role <> 'owner'` | ídem (USING y WITH CHECK) | ídem | El admin no puede tocar owners ni ascender a nadie (ni a sí mismo) a owner |
-| `invitations` | manager | manager | — | manager | Aceptar una invitación será una función (Fase 3); el CHECK impide invitar owners |
+| `store_members` | miembro | `app.can_manage_role`: owner cualquier rol; admin solo `cashier` | ídem (USING = fila actual, WITH CHECK = fila nueva) | ídem | Desde la Fase 3 **solo el owner gestiona admins**: el admin no puede invitar, ascender, degradar ni quitar admins ni owners |
+| `invitations` | manager | `app.can_manage_role` (owner: admin/cashier; admin: cashier) | — | ídem | Aceptar = `accept_invitation()`; el CHECK impide invitar owners; un solo pendiente por email y tienda |
 | `products` | miembro | manager (sin `stock`) | manager (sin `stock`) | — | El POS necesita nombre/precio/stock; borrar = `deleted_at` (las ventas siguen apuntando al producto) |
 | `product_costs` | manager | manager | manager (`cost_price`) | — | Costos fuera del alcance del cajero |
 | `stock_entries`, `stock_entry_items`, `stock_movements` | manager | — | — | — | Incluyen costos; se escriben solo con funciones |
@@ -272,11 +272,79 @@ erDiagram
 | Clientes (ver, crear, editar) | ✅ | ✅ | ✅ |
 | Borrar clientes | ✅ | ✅ | ❌ |
 | Historial de actividad | ✅ | ✅ | ❌ |
-| Invitar usuarios / cambiar roles | ✅ | ✅ (sin owners) | ❌ |
+| Invitar / cambiar rol / quitar cajeros | ✅ | ✅ | ❌ |
+| Invitar / cambiar rol / quitar admins | ✅ | ❌ | ❌ |
+| Asignar el rol owner | ✅ | ❌ | ❌ |
 | Suscripción y facturación | ✅ | ❌ | ❌ (Fase 9) |
 
-**Tienda activa:** el usuario elige tienda en la UI (Fase 3) y se envía como parámetro; RLS no confía
-en ella, siempre comprueba la membresía.
+**Tienda activa:** ver §3b.
+
+## 3b. Autenticación, sesión y protección de rutas (implementado en la Fase 3)
+
+### Cómo funciona la sesión con cookies
+1. **Login** (`signInWithPassword` en una Server Action): Supabase Auth devuelve un *access token*
+   (JWT firmado, vive ~1 h) y un *refresh token*. `@supabase/ssr` los guarda en cookies del dominio de la
+   app (`sb-stocktill-auth-token`, troceada si es grande) mediante `cookies().set()`.
+2. **En cada petición**, el navegador envía esas cookies. El servidor crea un cliente de Supabase con
+   ellas, así cada consulta a la API viaja con el JWT del usuario y **RLS** sabe quién es.
+3. **Refresco:** `src/proxy.ts` (el antiguo *middleware*; en Next 16 se llama **Proxy**) corre antes de
+   cada ruta y llama `supabase.auth.getClaims()`. Si el access token caducó, usa el refresh token y
+   escribe las cookies nuevas en la petición (para que las vea el render actual) y en la respuesta (para
+   que el navegador las guarde). Los Server Components no pueden escribir cookies; por eso se hace ahí.
+4. **Verificación:** `getClaims()` valida la firma y caducidad del JWT (con las claves públicas JWKS
+   del proyecto; si no hay claves asimétricas, pregunta al servidor de Auth). Nunca usamos
+   `getSession()` para autorizar: solo decodifica la cookie sin verificarla.
+5. **Logout:** `signOut()` invalida la sesión en Auth y borra las cookies.
+
+### Protección de rutas (dos capas)
+- **Proxy (optimista):** sin sesión en `/app`, `/onboarding` o `/invite` → `/login?next=…`; con sesión
+  en `/login`/`/signup` → `/app`. Es rápido pero **no es la barrera de seguridad** (la doc de Next lo
+  advierte: solo lee la cookie).
+- **Data Access Layer** (`src/lib/auth/dal.ts`, `server-only`, memoizada con `cache()` de React):
+  `requireUser()`, `getMemberships()`, `requireStoreContext()` y `requireRole(roles)`. Cada página
+  privada y cada Server Action la llama; las páginas de managers responden **404** a otros roles (no
+  revelan que existen). Debajo, RLS sigue siendo la garantía final.
+- Con `cacheComponents`, leer cookies fuera de `<Suspense>` es error de build: el layout privado
+  envuelve el contenido dependiente de la sesión en `<Suspense>` (estructura estática + streaming).
+
+### Tienda activa
+Cookie `stocktill_active_store` (`httpOnly`, `SameSite=Lax`, `Secure` en producción, 1 año). Solo
+**recuerda** la elección: en cada petición la DAL comprueba que el usuario sea miembro de esa tienda;
+si no (cookie manipulada o membresía quitada) usa su primera tienda. Sin membresías → `/onboarding`.
+Cambiar de tienda = Server Action `switchStore`, que también valida la membresía.
+
+### Correos (local: Mailpit)
+- Confirmación y recuperación los envía **Supabase Auth** con plantillas propias
+  (`supabase/templates/*.html`) cuyo enlace va a `/auth/confirm?token_hash=…&type=…`. Esa ruta llama
+  `verifyOtp` y crea la sesión. Funciona aunque el correo se abra en otro navegador (el flujo PKCE con
+  `code` exige el mismo navegador).
+- Invitaciones: las envía **la app** por SMTP con `nodemailer` (`src/lib/email`). En local,
+  Mailpit expone SMTP en `54325` (`[local_smtp] smtp_port`). En producción, cualquier proveedor SMTP vía
+  `SMTP_*`.
+- Redirecciones post-login/confirmación pasan por `safeNextPath` (solo rutas relativas del propio
+  sitio: evita *open redirects*).
+
+### Invitaciones
+1. Owner/admin envía email + rol. El servidor valida el rol con `invitableRoles` (owner: admin o
+   cajero; admin: solo cajero) y la BD lo repite con RLS (`app.can_manage_role`).
+2. Se generan **32 bytes aleatorios** (`base64url`); el enlace del correo lleva el token y la BD guarda
+   solo su **SHA-256** (`token_hash`). Expira en **7 días**; reenviar reemplaza el pendiente.
+3. El invitado abre `/invite/<token>`: si no tiene sesión inicia sesión o se registra (el `next` lo trae
+   de vuelta); `invitation_preview` muestra tienda y rol.
+4. `accept_invitation(token)` (definer) bloquea la invitación (`for update`) y valida que exista, no esté
+   usada ni vencida, y que **el email del usuario sea el invitado**; crea la membresía y marca
+   `accepted_at`/`accepted_by`. Estado mostrado: `pending`, `expired` o `accepted` (calculado).
+
+### Funciones SQL de la Fase 3
+| Función | Quién | Qué hace |
+|---|---|---|
+| `create_store(name, currency, tax_rate, prices_include_tax)` | cualquier usuario autenticado | Tienda + configuración + membresía owner en una transacción; slug con sufijo aleatorio |
+| `invitation_preview(token)` | autenticado con el token | Tienda, rol, email y estado de la invitación |
+| `accept_invitation(token)` | el usuario invitado | Valida y crea la membresía |
+| `app.can_manage_role(store, role)` | (políticas) | owner → cualquier rol; admin → solo `cashier` |
+| `app.hash_token(token)` | (interno) | SHA-256 hex; nadie la puede llamar desde la API |
+
+`profiles.email` se copia de `auth.users` por trigger para que la página del equipo muestre correos.
 
 ## 4. Consistencia del stock (implementado en la Fase 2)
 
@@ -376,6 +444,8 @@ consultas y validaciones de cada módulo, y escala mejor que carpetas gigantes d
 |---|---|---|
 | Unitarias | Vitest | Cálculo de totales/descuentos/impuestos (precios con impuesto incluido y sin incluir, redondeo), utilidades de dinero, esquemas Zod, parser y validador del Excel, buffer del lector de código de barras |
 | Base de datos | **pgTAP** (`npm run test:db` = `supabase test db`), en `supabase/tests/database/` | Estructura (RLS en todas las tablas, privilegios, `search_path` de funciones definer), **aislamiento** A/B en lectura/escritura/RPC, **roles**, **stock** (sin escritura directa, sin negativos, sin sobreventa, `stock = Σ movimientos`), funciones (impuestos, idempotencia, promedio ponderado, devoluciones), historial inmutable y tablas de Stripe |
+| Integración | Vitest (`npm run test:integration`) contra Supabase local | Inician sesión como los usuarios demo con la publishable key (leída en tiempo de ejecución de `supabase status`, nunca impresa) y llaman a las mismas *services* que las Server Actions: permisos por rol, invitación de ida y vuelta, entrega del correo en Mailpit |
+| E2E | **Playwright** (adelantado de la Fase 11, `npm run test:e2e`) | Chromium real contra `next dev`: registro → confirmación leyendo Mailpit → crear tienda → invitar → aceptar con otro usuario → cambiar rol; comprueba la navegación por rol y el 404 de páginas de managers |
 | Concurrencia | Vitest + `postgres` contra Supabase local (Fase 6) | Dos ventas simultáneas del último artículo; reintentos con la misma clave de idempotencia |
 | Integración | Vitest | Server Actions con usuarios de prueba; webhook de Stripe con payloads firmados de prueba (`stripe.webhooks.generateTestHeaderString`) |
 | Navegador | Playwright | Registro + crear tienda, invitar cajero, venta con "lector" simulado (tecleo rápido + Enter), devolución, importación Excel, restricción de páginas por rol |

@@ -49,16 +49,21 @@ pruebas de aislamiento.
 Quedan para otras fases: prueba de concurrencia real con dos conexiones (Fase 6), tabla
 `import_batches` (Fase 5), funciones `create_store` y `accept_invitation` (Fase 3).
 
-## Fase 3 — Autenticación, tiendas, roles e invitaciones
-**Objetivos:** registro/login con Supabase Auth, creación de tienda (el creador es owner) con una
-función SQL `create_store` (tienda + membresía owner en una transacción), selector de tienda activa,
-invitaciones por enlace con rol y función `accept_invitation`, gestión de miembros, guards de rol en el servidor.
+## Fase 3 — Autenticación, tiendas, roles e invitaciones ✅ terminada (CI de GitHub pendiente)
+**Objetivos:** registro/login con Supabase Auth (correo y contraseña, confirmación por correo,
+recuperación de contraseña), sesión con cookies (`@supabase/ssr`), Proxy + Data Access Layer,
+`create_store` y onboarding, selector de tienda activa, invitaciones por correo con `accept_invitation`,
+gestión del equipo, configuración de la tienda y layout privado con navegación por rol.
+Regla decidida: **solo el owner gestiona admins**; el admin solo invita, cambia y quita cajeros.
 **Terminado cuando:**
-- [ ] Registro → crear tienda → entrar al panel funciona de punta a punta.
-- [ ] Owner/admin configuran moneda, tasa de impuesto y si los precios incluyen impuesto; el cajero no.
-- [ ] Owner/admin invitan; el invitado acepta y queda con el rol correcto; tokens expiran y son de un uso.
-- [ ] Rutas y Server Actions rechazan roles no autorizados (pruebas).
-- [ ] Middleware refresca la sesión y protege el área privada.
+- [x] Registro → correo en Mailpit → confirmar → crear tienda → entrar al panel funciona de punta a punta.
+- [x] Owner/admin configuran moneda, tasa de impuesto y si los precios incluyen impuesto; el cajero no.
+- [x] Owner/admin invitan; el invitado acepta y queda con el rol correcto; tokens expiran y son de un uso.
+- [x] Rutas y Server Actions rechazan roles no autorizados (pruebas de integración y E2E).
+- [x] El Proxy refresca la sesión y protege el área privada.
+- [x] pgTAP de `create_store` y `accept_invitation` (vencida, otro correo, ya usada, rol no permitido).
+- [x] Playwright adelantado: prueba E2E del flujo completo en Chromium.
+- [ ] Jobs de CI pasan en GitHub (Actions bloqueado temporalmente en la cuenta).
 
 ## Fase 4 — Inventario e historial de actividad
 **Objetivos:** CRUD de productos (SKU, código de barras, precios, umbral de stock bajo), entradas de
@@ -127,7 +132,7 @@ funciones y precios, accesible y responsive.
 **Objetivos:** suite E2E de los flujos clave, Dockerfile multi-stage, despliegue en Railway con Supabase
 Cloud (plan gratuito), README de portafolio.
 **Terminado cuando:**
-- [ ] Playwright cubre registro, invitación, venta con lector simulado, devolución, importación y roles; pasa en CI.
+- [ ] Playwright (ya instalado en la Fase 3, con el flujo de registro/invitación/roles) cubre además venta con lector simulado, devolución e importación; pasa en CI.
 - [ ] `docker build` produce una imagen pequeña que arranca con `docker run` y pasa el healthcheck.
 - [ ] App desplegada en Railway y funcionando con datos de demo (el usuario configura variables y hace push).
 - [ ] README con descripción, capturas, arquitectura, cómo correrlo en local y decisiones técnicas.
