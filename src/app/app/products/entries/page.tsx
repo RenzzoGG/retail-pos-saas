@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Pagination } from "@/components/app/pagination";
 import { Alert } from "@/components/ui/alert";
 import { buttonClasses } from "@/components/ui/button-styles";
+import { ImportBadge } from "@/features/inventory/components/import-badge";
 import { ProductsTabs } from "@/features/inventory/components/products-tabs";
 import { listStockEntries } from "@/features/inventory/service";
 import { getActiveStore } from "@/features/stores/queries";
@@ -59,7 +60,10 @@ export default async function StockEntriesPage({ searchParams }: { searchParams:
                         {formatDateTime(e.createdAt, settings.timezone)}
                       </Link>
                     </td>
-                    <td className="px-3 py-2">{e.supplier ?? "—"}</td>
+                    <td className="px-3 py-2">
+                      {e.supplier ?? "—"}
+                      {e.source === "import" ? <ImportBadge /> : null}
+                    </td>
                     <td className="px-3 py-2 text-right tabular-nums">{e.lineCount}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{e.units}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{formatMoney(e.totalCost, settings.currency)}</td>

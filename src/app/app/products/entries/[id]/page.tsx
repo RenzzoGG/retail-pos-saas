@@ -29,7 +29,7 @@ export default async function StockEntryPage({ params, searchParams }: Props) {
   return (
     <>
       <PageHeader
-        title="Stock entry"
+        title={e.source === "import" ? "Stock entry (import)" : "Stock entry"}
         description={`${formatDateTime(e.createdAt, settings.timezone)} · by ${e.createdBy}${e.supplier ? ` · from ${e.supplier}` : ""}`}
       />
       <ProductsTabs current="entries" />

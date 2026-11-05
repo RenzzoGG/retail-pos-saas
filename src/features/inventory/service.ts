@@ -249,6 +249,7 @@ export type StockEntrySummary = {
   createdAt: string;
   supplier: string | null;
   note: string | null;
+  source: "manual" | "import";
   createdBy: string;
   lineCount: number;
   units: number;
@@ -265,7 +266,7 @@ export async function listStockEntries(
   const from = (page - 1) * pageSize;
   const { data, error, count } = await db
     .from("stock_entries")
-    .select("id, created_at, supplier, note, created_by, stock_entry_items(quantity, unit_cost)", { count: "exact" })
+    .select("id, created_at, supplier, note, source, created_by, stock_entry_items(quantity, unit_cost)", { count: "exact" })
     .eq("store_id", actor.storeId)
     .order("created_at", { ascending: false })
     .order("id")
@@ -281,6 +282,7 @@ export async function listStockEntries(
         createdAt: e.created_at,
         supplier: e.supplier,
         note: e.note,
+        source: e.source === "import" ? "import" : "manual",
         createdBy: (e.created_by && names.get(e.created_by)) || "Former member",
         lineCount: items.length,
         units: items.reduce((sum, i) => sum + i.quantity, 0),
@@ -301,7 +303,7 @@ export async function getStockEntry(db: Db, actor: InventoryActor, entryId: stri
   if (!isManager(actor.role)) return forbidden();
   const { data, error } = await db
     .from("stock_entries")
-    .select("id, created_at, supplier, note, created_by, stock_entry_items(product_id, quantity, unit_cost, products(name, sku))")
+    .select("id, created_at, supplier, note, source, created_by, stock_entry_items(product_id, quantity, unit_cost, products(name, sku))")
     .eq("id", entryId)
     .eq("store_id", actor.storeId)
     .maybeSingle();
@@ -321,6 +323,7 @@ export async function getStockEntry(db: Db, actor: InventoryActor, entryId: stri
     createdAt: data.created_at,
     supplier: data.supplier,
     note: data.note,
+    source: data.source === "import" ? "import" : "manual",
     createdBy: (data.created_by && names.get(data.created_by)) || "Former member",
     lineCount: lines.length,
     units: lines.reduce((s, l) => s + l.quantity, 0),

@@ -4,6 +4,7 @@ const TABS = [
   { href: "/app/products", label: "Catalog", key: "catalog" },
   { href: "/app/products/receive", label: "Receive stock", key: "receive" },
   { href: "/app/products/entries", label: "Stock entries", key: "entries" },
+  { href: "/app/products/import", label: "Import", key: "import" },
 ] as const;
 
 /** Sub-navigation of the Products section (owner/admin only). */
