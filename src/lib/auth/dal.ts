@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { connection } from "next/server";
 import { cache } from "react";
 import { isStoreRole, type StoreRole } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
@@ -23,6 +24,10 @@ export type StoreContext = {
 
 /** Verified user from the session cookie, or null. */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
+  // The session check compares the token expiry with the current time
+  // (Date.now() inside supabase-js). Mark it as request-time work so Next.js
+  // never tries to prerender it into the static shell.
+  await connection();
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
   const sub = data?.claims?.sub;
