@@ -85,6 +85,14 @@ detail, to reprint). Owners and admins register **returns** from the sale detail
 PDF receipt. **Customers** (`/app/customers`) can be created from the POS with “+ New customer”.
 The receipt note (footer) is set per store in **Settings**.
 
+### Landing page
+
+`/` is a marketing page built with **GSAP** (ScrollTrigger, SplitText, `useGSAP`): a live recreation
+of the register in the hero (sample data), scroll-driven feature sections, a pinned security section,
+pricing and FAQ. It respects `prefers-reduced-motion` (everything is shown without animation) and
+includes Open Graph image, `sitemap.xml` and `robots.txt`. GSAP and all its plugins are free under
+GSAP's standard no-charge license.
+
 ### Billing (Stripe test mode)
 
 Owners subscribe from **Billing** (`/app/billing`): Stocktill Monthly, 19 USD/month with a 14-day free

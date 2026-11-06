@@ -713,6 +713,63 @@ tablas.
 El stock de apertura se calcula para que el **stock de hoy sea el mismo de antes**: los productos con stock
 bajo siguen bajos y las pruebas E2E no cambian.
 
+## 4g. Landing con GSAP (implementado en la Fase 10)
+
+**Ruta `/`:** es un Server Component estático (`○` en el build). Todo el texto, los encabezados y los
+enlaces llegan en el HTML. Solo hay unas pocas **islas cliente**:
+- `HeroDemo`, el POS vivo;
+- `ScrollReveals`, invisible, anima los bloques `[data-reveal-group]`;
+- las ilustraciones `*Art` y `SecurityArt`.
+
+Interfaz en inglés y datos **de ejemplo** rotulados como tales. No hay testimonios, logos ni cifras
+inventadas presentadas como reales.
+
+**Licencia de GSAP 3.15.0** (verificada en gsap.com/standard-license): la "Standard no-charge license"
+cubre el uso comercial y **todos los plugins** (ScrollTrigger y SplitText incluidos). Solo prohíbe usar
+GSAP en herramientas visuales de animación que compitan con Webflow, y no pide atribución. Stocktill
+(un POS) puede usarlo. `@gsap/react` 2.1.2 aporta el hook `useGSAP`. Ambos están fijados a versión
+exacta.
+
+### Animaciones
+**Limpieza:**
+- `useGSAP` crea un `gsap.context`, así que al desmontar se revierten tweens, timelines, ScrollTriggers
+  y SplitText.
+- `gsap.matchMedia()` con `(prefers-reduced-motion: no-preference)`: con *reduce* no se crea nada y, si
+  la preferencia cambia en vivo, se revierte solo.
+
+**Hero:**
+- Un **timeline** con `repeat: -1` dirige el ritmo (teclea el código, barre el láser, pulsa "Charge") y
+  avanza con `.call()` el reducer puro `demo-cart.ts`, probado.
+- Cada elemento que React monta (renglón, nota de pago, tarjeta del dashboard) se anima a sí mismo con
+  su propio `useGSAP`.
+- Los números se animan con *proxy tweens*.
+- Se pausa fuera de pantalla con un IntersectionObserver.
+
+**Secciones:**
+- `ScrollTrigger` (con `once`, `scrub`, `toggleActions` y `pin`) y `SplitText` (por líneas, con
+  máscara y `aria` automático).
+- La sección de seguridad se fija con `pin` y avanza con `scrub` solo en escritorio.
+- El texto informativo se anima con `opacity`, nunca con `visibility: hidden`, así que siempre se puede
+  leer con lector de pantalla.
+
+### Rendimiento
+Medido con Lighthouse 13.5 en móvil sobre el build de producción. La puntuación de rendimiento pasó de
+74 a una mediana de 96 (escritorio: 100) con estos cambios:
+1. **Configurar cada sección al acercarse** (`useNearViewport`): crear ScrollTriggers y dividir el texto
+   mide el layout, y hacerlo todo en la carga generaba tareas largas.
+2. **Una sola isla para las animaciones de scroll** en lugar de envolver el texto en componentes
+   cliente: así hay menos que hidratar.
+3. **ScrollTrigger y SplitText con `import()` dinámico** cuando hacen falta (en tiempo idle o al
+   acercarse una sección). Solo el núcleo de GSAP carga con la página, y con reduced motion los plugins
+   ni se descargan.
+4. **Geist Mono sin precarga** y Geist Sans explícita en la landing.
+
+### SEO
+- Metadatos con canonical, Open Graph y Twitter, y `metadataBase` desde `NEXT_PUBLIC_SITE_URL`.
+- `opengraph-image.tsx` (`next/og`, 1200×630) se genera en el build.
+- `sitemap.ts` y `robots.ts`: `/app`, `/api`, `/auth`, `/invite` y `/onboarding` quedan fuera del
+  índice. El proxy de sesión no se ejecuta para esas rutas.
+
 ## 5. Estructura de carpetas (propuesta)
 
 ```

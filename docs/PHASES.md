@@ -137,13 +137,14 @@ privada según el estado de la suscripción.
 - [x] Estados `trialing`, `active`, `past_due`, `canceled` se reflejan en la app y en el acceso real
       (servidor + triggers de BD).
 
-## Fase 10 — Landing con GSAP
+## Fase 10 — Landing con GSAP ✅ terminada
 **Objetivos:** landing del producto con hero animado que muestra la interfaz del POS, secciones de
 funciones y precios, accesible y responsive.
 **Terminado cuando:**
-- [ ] Animaciones con GSAP (ScrollTrigger) respetan `prefers-reduced-motion`.
-- [ ] Lighthouse: rendimiento y accesibilidad ≥ 90 en escritorio.
-- [ ] Se ve bien en móvil y escritorio.
+- [x] Animaciones con GSAP (ScrollTrigger) respetan `prefers-reduced-motion` (E2E con `reducedMotion`).
+- [x] Lighthouse ≥ 90: escritorio 100/100/100/100; móvil rendimiento mediana 96 (5 corridas: 80–97),
+      accesibilidad, buenas prácticas y SEO 100 — build de producción local.
+- [x] Se ve bien en móvil y escritorio (desde 320 px, sin scroll horizontal; claro y oscuro).
 
 ## Fase 11 — Playwright, Dockerfile de producción, despliegue y README
 **Objetivos:** suite E2E de los flujos clave, Dockerfile multi-stage, despliegue en Railway con Supabase
