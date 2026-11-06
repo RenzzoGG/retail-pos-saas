@@ -113,6 +113,6 @@ npm run test:stripe
 | `STRIPE_PRICE_ID` | Precio de 19 USD (`price_…`) | No |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Clave publicable (`pk_test_…`). Hoy no se usa: Checkout y Portal están alojados en Stripe | No |
 
-En producción (fase 11) el webhook se registra en Dashboard → Developers → Webhooks con la URL pública
+En producción (fase 11, paso a paso en `docs/DEPLOY.md` §6) el webhook se registra en Dashboard → Developers → Webhooks con la URL pública
 `https://<tu-app>/api/stripe/webhook` y esos mismos eventos. Su `whsec_…` es distinto del de
 `stripe listen`.
