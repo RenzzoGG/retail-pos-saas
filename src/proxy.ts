@@ -12,5 +12,5 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Everything except static assets, images, the health check and the Stripe
   // webhook (server-to-server: no session, it must get the raw body untouched).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/health|api/stripe|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/health|api/stripe|robots.txt|sitemap.xml|opengraph-image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };
