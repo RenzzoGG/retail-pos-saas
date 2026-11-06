@@ -5,6 +5,24 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // The Supabase secret key bypasses RLS: only the Stripe webhook may use it.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/app/api/stripe/webhook/route.ts", "src/lib/supabase/admin.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/lib/supabase/admin",
+              message: "The Supabase secret key bypasses RLS. Only the Stripe webhook route may use it (docs/DESIGN.md §8).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

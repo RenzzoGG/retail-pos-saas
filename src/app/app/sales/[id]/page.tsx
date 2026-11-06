@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/app/page-header";
 import { Alert } from "@/components/ui/alert";
 import { buttonClasses } from "@/components/ui/button-styles";
 import { Card } from "@/components/ui/card";
+import { accessFor, canSell } from "@/features/billing/access";
+import { getSubscription } from "@/features/billing/service";
 import { METHOD_LABELS, STATUS_LABELS } from "@/features/pos/labels";
 import { getSale } from "@/features/pos/service";
 import { ReturnForm } from "@/features/returns/components/return-form";
@@ -21,12 +23,17 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
   const { user, store, settings } = await getActiveStore();
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const manager = isManager(store.role);
-  const result = await getSale(await createClient(), { userId: user.id, storeId: store.storeId, role: store.role }, id);
+  const db = await createClient();
+  const [result, sub] = await Promise.all([
+    getSale(db, { userId: user.id, storeId: store.storeId, role: store.role }, id),
+    getSubscription(db, store.storeId),
+  ]);
   if (!result.ok) return <Alert tone="error">{result.error}</Alert>;
   const sale = result.data;
   if (!sale) notFound();
   const money = (n: number) => formatMoney(n, settings.currency);
-  const canReturn = manager && sale.items.some((i) => i.quantity > i.returnedQty);
+  // Returns need an active subscription (selling access), like sales.
+  const canReturn = manager && sale.items.some((i) => i.quantity > i.returnedQty) && sub.ok && canSell(accessFor(sub.data?.status));
 
   return (
     <>

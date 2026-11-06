@@ -1,3 +1,4 @@
+import { checkAccess } from "@/features/billing/service";
 import { isManager, type StoreRole } from "@/lib/permissions";
 import { escapeSearchTerm } from "@/lib/postgrest";
 import { getProfileNames } from "@/lib/services/profiles";
@@ -150,6 +151,8 @@ function productColumns(input: ProductInput) {
 /** Owner/admin. Stock is not part of the input: new products start at 0. */
 export async function createProduct(db: Db, actor: InventoryActor, input: ProductInput): Promise<Result<string>> {
   if (!isManager(actor.role)) return forbidden();
+  const access = await checkAccess(db, actor.storeId, "edit");
+  if (!access.ok) return access;
   const { data, error } = await db
     .from("products")
     .insert({ store_id: actor.storeId, ...productColumns(input) })
@@ -166,6 +169,8 @@ export async function updateProduct(
   input: ProductInput,
 ): Promise<Result<null>> {
   if (!isManager(actor.role)) return forbidden();
+  const access = await checkAccess(db, actor.storeId, "edit");
+  if (!access.ok) return access;
   const { data, error } = await db
     .from("products")
     .update(productColumns(input))
@@ -181,6 +186,8 @@ export async function updateProduct(
 /** Soft delete: past sales and stock movements keep pointing at the product. */
 export async function deleteProduct(db: Db, actor: InventoryActor, productId: string): Promise<Result<null>> {
   if (!isManager(actor.role)) return forbidden();
+  const access = await checkAccess(db, actor.storeId, "edit");
+  if (!access.ok) return access;
   const { data, error } = await db
     .from("products")
     .update({ deleted_at: new Date().toISOString() })
@@ -229,6 +236,8 @@ export async function searchProducts(db: Db, actor: InventoryActor, text: string
 /** Receives merchandise through the SQL function (stock + weighted average cost, atomically). */
 export async function createStockEntry(db: Db, actor: InventoryActor, input: StockEntryInput): Promise<Result<string>> {
   if (!isManager(actor.role)) return forbidden();
+  const access = await checkAccess(db, actor.storeId, "edit");
+  if (!access.ok) return access;
   const { data, error } = await db.rpc("create_stock_entry", {
     p_store_id: actor.storeId,
     p_items: input.lines.map((l) => ({ product_id: l.productId, quantity: l.quantity, unit_cost: l.unitCost })),

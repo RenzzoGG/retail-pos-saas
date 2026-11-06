@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { signOut } from "@/features/auth/actions";
+import { SubscriptionBanner } from "@/features/billing/components/subscription-banner";
 import { requireStoreContext } from "@/lib/auth/dal";
 import { ROLE_LABELS, navForRole } from "@/lib/permissions";
 import { SidebarNav } from "./sidebar-nav";
@@ -45,7 +46,8 @@ export async function AppShell({ children }: { children: ReactNode }) {
           </form>
         </div>
       </aside>
-      <main id="main" className="flex-1 bg-slate-50 p-4 md:p-8 dark:bg-slate-950">
+      <main id="main" className="min-w-0 flex-1 bg-slate-50 p-4 md:p-8 dark:bg-slate-950">
+        <SubscriptionBanner storeId={store.storeId} isOwner={store.role === "owner"} />
         {children}
       </main>
     </div>

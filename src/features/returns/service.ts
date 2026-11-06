@@ -1,3 +1,4 @@
+import { checkAccess } from "@/features/billing/service";
 import { isManager, type StoreRole } from "@/lib/permissions";
 import { type Db, forbidden, ok, type Result } from "@/lib/services/result";
 import type { ReturnInput } from "./schemas";
@@ -21,6 +22,8 @@ export async function createReturn(
   actor: { storeId: string; role: StoreRole },
   input: ReturnInput,
 ): Promise<Result<string>> {
+  const access = await checkAccess(db, actor.storeId, "sell");
+  if (!access.ok) return access;
   if (!isManager(actor.role)) return forbidden();
   const { data, error } = await db.rpc("create_return", {
     p_sale_id: input.saleId,

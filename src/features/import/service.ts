@@ -1,3 +1,4 @@
+import { checkAccess } from "@/features/billing/service";
 import { createHash } from "node:crypto";
 import { isManager, type StoreRole } from "@/lib/permissions";
 import { getProfileNames } from "@/lib/services/profiles";
@@ -103,6 +104,8 @@ export async function confirmImport(
   updateExisting: boolean,
 ): Promise<Result<ImportResult>> {
   if (!isManager(actor.role)) return forbidden();
+  const access = await checkAccess(db, actor.storeId, "edit");
+  if (!access.ok) return access;
   if (hashFile(file.bytes) !== expectedHash) {
     return { ok: false, error: "The file changed after the preview. Preview it again before importing.", code: "file_changed" };
   }

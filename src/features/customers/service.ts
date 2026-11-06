@@ -1,3 +1,4 @@
+import { checkAccess } from "@/features/billing/service";
 import { isManager, type StoreRole } from "@/lib/permissions";
 import { escapeSearchTerm } from "@/lib/postgrest";
 import { type Db, fail, forbidden, ok, type Result } from "@/lib/services/result";
@@ -127,6 +128,8 @@ export async function getCustomer(db: Db, storeId: string, customerId: string): 
 
 /** Any member (cashiers register customers at the register). */
 export async function createCustomer(db: Db, actor: CustomerActor, input: CustomerInput): Promise<Result<Customer>> {
+  const access = await checkAccess(db, actor.storeId, "edit");
+  if (!access.ok) return access;
   const { data, error } = await db
     .from("customers")
     .insert({ store_id: actor.storeId, ...columnsFor(input) })
@@ -137,6 +140,8 @@ export async function createCustomer(db: Db, actor: CustomerActor, input: Custom
 }
 
 export async function updateCustomer(db: Db, actor: CustomerActor, id: string, input: CustomerInput): Promise<Result<null>> {
+  const access = await checkAccess(db, actor.storeId, "edit");
+  if (!access.ok) return access;
   const { data, error } = await db
     .from("customers")
     .update(columnsFor(input))
@@ -152,6 +157,8 @@ export async function updateCustomer(db: Db, actor: CustomerActor, id: string, i
 /** Owner/admin. Customers with sales are archived; the others are deleted. */
 export async function deleteCustomer(db: Db, actor: CustomerActor, id: string): Promise<Result<"deleted" | "archived">> {
   if (!isManager(actor.role)) return forbidden();
+  const access = await checkAccess(db, actor.storeId, "edit");
+  if (!access.ok) return access;
   const { data, error } = await db.rpc("delete_customer", { p_customer_id: id });
   if (error || !data) return fail(error);
   return ok(data === "archived" ? "archived" : "deleted");

@@ -75,3 +75,34 @@ export function getSmtpConfig(): SmtpConfig {
     from: process.env.EMAIL_FROM || "Stocktill <no-reply@stocktill.test>",
   };
 }
+
+/**
+ * Server-only Supabase key that BYPASSES RLS. Only the Stripe webhook uses it
+ * (src/lib/supabase/admin.ts; ESLint forbids importing that file elsewhere).
+ */
+export function getSupabaseSecretKey(): string {
+  return required("SUPABASE_SECRET_KEY", process.env.SUPABASE_SECRET_KEY);
+}
+
+export type StripeConfig = { secretKey: string; priceId: string };
+
+/**
+ * Stripe (test mode) for Checkout and the Billing Portal. null when it isn't
+ * configured (CI, local without keys): the Billing page says so instead of failing.
+ * Live keys are refused: this project only runs in Stripe test mode.
+ */
+export function getStripeConfig(): StripeConfig | null {
+  const secretKey = process.env.STRIPE_SECRET_KEY ?? "";
+  const priceId = process.env.STRIPE_PRICE_ID ?? "";
+  if (!secretKey || !priceId || secretKey.includes("example") || priceId.includes("example")) return null;
+  if (!secretKey.startsWith("sk_test_") && !secretKey.startsWith("rk_test_")) {
+    throw new Error("STRIPE_SECRET_KEY must be a TEST key (sk_test_…). Live keys are not allowed.");
+  }
+  return { secretKey, priceId };
+}
+
+/** Signing secret of the webhook endpoint (whsec_…), from `stripe listen` or the Dashboard. */
+export function getStripeWebhookSecret(): string | null {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+  return secret && !secret.includes("example") ? secret : null;
+}

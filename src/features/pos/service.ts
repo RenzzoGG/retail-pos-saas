@@ -1,3 +1,4 @@
+import { checkAccess } from "@/features/billing/service";
 import { isManager, type StoreRole } from "@/lib/permissions";
 import { escapeSearchTerm } from "@/lib/postgrest";
 import { getProfileNames } from "@/lib/services/profiles";
@@ -288,6 +289,7 @@ const CHECKOUT_MESSAGES: Record<string, string> = {
   customer_not_found: "That customer no longer exists. Remove it from the sale.",
   invalid_quantity: "Quantities must be whole numbers of at least 1.",
   forbidden: "You don't have permission to sell in this store.",
+  subscription_inactive: "Selling is paused: this store needs an active subscription (see Billing).",
 };
 
 /**
@@ -300,6 +302,8 @@ export async function completeSale(
   actor: PosActor,
   input: CheckoutInput,
 ): Promise<{ ok: true; sale: SaleDetail } | { ok: false; error: CheckoutError }> {
+  const access = await checkAccess(db, actor.storeId, "sell");
+  if (!access.ok) return { ok: false, error: { code: access.code ?? "subscription_inactive", message: access.error } };
   const { data: saleId, error } = await db.rpc("create_sale", {
     p_store_id: actor.storeId,
     p_items: input.items.map((i) => ({ product_id: i.productId, quantity: i.quantity, discount: i.discount })),
