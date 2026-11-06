@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { DEMO, signInAs } from "./auth";
-import { USERS } from "../fixtures/demo";
+import { OTHER_STORE_ID, USERS } from "../fixtures/demo";
 
 /**
  * Billing is owner-only. The seed stores don't depend on Stripe: the demo store
@@ -27,6 +27,13 @@ test("owner: Billing shows the plan; admins and cashiers can't open it", async (
 
 test("a store in its free trial shows the days left and can sell", async ({ browser }) => {
   const other = await signInAs(browser, USERS.otherOwner.email);
+  // The integration tests may have given this user more stores: pick Other Shop.
+  await expect(other.getByRole("heading", { name: "Dashboard" })).toBeVisible(); // shell rendered
+  const switcher = other.getByLabel("Store", { exact: true });
+  if ((await switcher.count()) > 0 && (await switcher.inputValue()) !== OTHER_STORE_ID) {
+    await Promise.all([other.waitForResponse((r) => r.request().method() === "POST"), switcher.selectOption(OTHER_STORE_ID)]);
+    await expect(switcher).toHaveValue(OTHER_STORE_ID);
+  }
   await other.goto("/app/billing");
   await expect(other.getByTestId("billing-status")).toHaveText(/Free trial · \d+ days? left/);
   await expect(other.getByText(/Trial ends/)).toBeVisible();
