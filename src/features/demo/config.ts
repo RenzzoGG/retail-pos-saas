@@ -21,7 +21,7 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
     role: "owner",
     email: `owner@${DEMO_EMAIL_DOMAIN}`,
     label: "Owner",
-    summary: "Dashboard, reports with profit, Excel export, returns, activity log.",
+    summary: "Dashboard, reports, Excel export, returns and the activity log.",
   },
   {
     role: "admin",
