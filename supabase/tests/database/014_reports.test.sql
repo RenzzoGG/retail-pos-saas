@@ -2,7 +2,7 @@
 -- America/New_York (2026-03-08 02:00 -> 03:00), a restocked return and a write-off.
 begin;
 \ir _helpers.psql
-select plan(27);
+select plan(29);
 
 -- Store: tax 10 % added on top, New York time.
 select tests.create_user('owner@rep.test',   '1c000000-0000-4000-8000-000000000001');
@@ -165,6 +165,9 @@ select results_eq(
   $$ select store_sales_count, store_sales_total, my_sales_count, my_sales_total from public.dashboard_today('2c000000-0000-4000-8000-000000000001') $$,
   $$ values (1, 33.00::numeric, 1, 33.00::numeric) $$,
   'dashboard_today for the cashier: store and own sales of today');
+select is(array(select app.member_store_ids()), array['2c000000-0000-4000-8000-000000000001'::uuid],
+  'RLS helper: the cashier is a member of exactly its store');
+select is(array(select app.managed_store_ids()), '{}'::uuid[], 'RLS helper: the cashier manages no store (no costs)');
 select ok(not exists (
     select 1 from pg_proc p, unnest(p.proargnames) a
     where p.proname = 'dashboard_today' and (a ilike '%cost%' or a ilike '%profit%' or a ilike '%margin%')),
