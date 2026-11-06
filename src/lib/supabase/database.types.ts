@@ -432,6 +432,11 @@ isOneToOne: true
 "create_store":
 { Args: { "p_currency"?: string,"p_name": string,"p_prices_include_tax"?: boolean,"p_tax_rate"?: number,"p_timezone"?: string }; Returns: string
                            },
+"dashboard_today":
+{ Args: { "p_store_id": string }; Returns: {
+              "my_sales_count": number,"my_sales_total": number,"store_sales_count": number,"store_sales_total": number
+            }[]
+                           },
 "delete_customer":
 { Args: { "p_customer_id": string }; Returns: string
                            },
@@ -441,6 +446,46 @@ isOneToOne: true
 "invitation_preview":
 { Args: { "p_token": string }; Returns: {
               "email": string,"expires_at": string,"role": Database["public"]['Enums']["store_role"],"status": string,"store_name": string
+            }[]
+                           },
+"report_cashiers":
+{ Args: { "p_from": string,"p_store_id": string,"p_to": string }; Returns: {
+              "avg_ticket": number,"cashier_id": string,"cashier_name": string,"gross_sales": number,"sales_count": number
+            }[]
+                           },
+"report_categories":
+{ Args: { "p_from": string,"p_store_id": string,"p_to": string }; Returns: {
+              "category": string,"net_sales": number,"net_units": number
+            }[]
+                           },
+"report_payment_methods":
+{ Args: { "p_from": string,"p_store_id": string,"p_to": string }; Returns: {
+              "collected": number,"method": Database["public"]['Enums']["payment_method"],"net": number,"payments_count": number,"refunds": number
+            }[]
+                           },
+"report_products":
+{ Args: { "p_from": string,"p_limit"?: number,"p_order"?: string,"p_store_id": string,"p_to": string }; Returns: {
+              "category": string,"name": string,"net_sales": number,"net_units": number,"product_id": string,"sku": string,"units_returned": number,"units_sold": number
+            }[]
+                           },
+"report_sale_lines_export":
+{ Args: { "p_from": string,"p_store_id": string,"p_to": string }; Returns: {
+              "category": string,"created_at": string,"discount": number,"line_total": number,"product_name": string,"quantity": number,"returned_qty": number,"sale_number": number,"sku": string,"unit_cost": number,"unit_price": number,"written_off_qty": number
+            }[]
+                           },
+"report_sales_export":
+{ Args: { "p_from": string,"p_store_id": string,"p_to": string }; Returns: {
+              "cashier_name": string,"cost": number,"created_at": string,"customer_name": string,"items_subtotal": number,"line_discounts": number,"net": number,"number": number,"payment_methods": string,"profit": number,"refunded": number,"sale_discount": number,"status": Database["public"]['Enums']["sale_status"],"tax": number,"total": number,"units": number
+            }[]
+                           },
+"report_summary":
+{ Args: { "p_from": string,"p_store_id": string,"p_to": string }; Returns: {
+              "avg_ticket": number,"cost_of_sales": number,"discounts": number,"gross_sales": number,"net_sales": number,"profit": number,"refunds": number,"restocked_cost": number,"returns_count": number,"sales_count": number,"tax": number,"units_returned": number,"units_sold": number,"write_off_cost": number,"write_off_units": number
+            }[]
+                           },
+"report_timeseries":
+{ Args: { "p_bucket"?: string,"p_from": string,"p_store_id": string,"p_to": string }; Returns: {
+              "bucket": string,"gross_sales": number,"net_sales": number,"profit": number,"refunds": number,"sales_count": number
             }[]
                            }
           }

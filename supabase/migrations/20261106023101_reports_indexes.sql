@@ -1,0 +1,1 @@
+CREATE INDEX "sales_store_cashier_created_idx" ON "sales" USING btree ("store_id","cashier_id","created_at");

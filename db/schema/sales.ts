@@ -79,6 +79,8 @@ export const sales = pgTable(
     }),
     index("sales_store_created_idx").on(t.storeId, t.createdAt),
     index("sales_store_customer_idx").on(t.storeId, t.customerId),
+    /** Dashboard "my sales today" and the per-cashier report. */
+    index("sales_store_cashier_created_idx").on(t.storeId, t.cashierId, t.createdAt),
     check("sales_number_pos", sql`${t.number} > 0`),
     check(
       "sales_amounts_nonneg",
