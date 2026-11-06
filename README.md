@@ -64,6 +64,7 @@ Stop everything with `npm run docker:down` and `npm run supabase:stop`.
 | `db:generate` / `db:check` | Generate / validate Drizzle migrations into `supabase/migrations` |
 | `db:migrate` / `db:reset` | Apply pending migrations / rebuild the local database and re-run the seed |
 | `test:integration` | Integration tests against local Supabase, signed in as the demo users |
+| `test:stripe` | Optional tests against the real Stripe API in test mode (skipped without keys; see docs/STRIPE.md) |
 | `test:e2e` | Playwright E2E (Chromium) on the production build: onboarding, inventory, import, POS, receipts, returns and customers |
 | `dev:local` | `next dev` with the local Supabase public URL/key injected at runtime |
 | `test:db` | pgTAP database tests: RLS, tenant isolation, roles, stock, audit log |
@@ -83,6 +84,16 @@ detail, to reprint). Owners and admins register **returns** from the sale detail
 “Return to stock” (uncheck it for damaged items), reason and refund method; each return has its own
 PDF receipt. **Customers** (`/app/customers`) can be created from the POS with “+ New customer”.
 The receipt note (footer) is set per store in **Settings**.
+
+### Billing (Stripe test mode)
+
+Owners subscribe from **Billing** (`/app/billing`): Stocktill Monthly, 19 USD/month with a 14-day free
+trial, through Stripe Checkout, and manage the card or cancel in the Stripe Billing Portal. **Only
+Stripe test mode is supported** (live keys are refused). Setup step by step: [`docs/STRIPE.md`](docs/STRIPE.md).
+
+A new store starts in **setup mode** (catalog, stock and team, but no selling); a trial or active plan
+gives full access; *past due* shows a warning; a canceled plan makes the store read-only. The demo
+stores don't need Stripe: the demo store has an active complimentary plan and Other Shop is in its trial.
 
 ### Dashboard and reports
 

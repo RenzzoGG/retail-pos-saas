@@ -105,7 +105,9 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             <Alert tone="info">Stripe isn&apos;t configured on this server yet, so subscriptions can&apos;t be started here. See docs/STRIPE.md.</Alert>
           )}
           {!canCheckout && !canManage ? (
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">This store has a complimentary demo plan: there is nothing to pay or manage.</p>
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-400" data-testid="billing-unlinked">
+              This plan comes with the demo data and isn&apos;t linked to Stripe: there is nothing to pay or manage.
+            </p>
           ) : null}
         </Card>
       </div>

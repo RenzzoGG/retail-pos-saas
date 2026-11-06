@@ -124,15 +124,18 @@ filtros por fecha, exportación de ventas a Excel.
       protegido; 404 para el cajero.
 - [x] Pendiente de la fase 7: nota de pie de ticket configurable en Settings (sin promesas de plazo).
 
-## Fase 9 — Stripe
+## Fase 9 — Stripe ✅ terminada (falta tu prueba con Stripe real)
 **Objetivos:** un solo plan mensual de **19 USD** en modo prueba con **14 días de prueba gratis**,
 Checkout, Billing Portal, webhook con verificación de firma e idempotencia, bloqueo/aviso del área
 privada según el estado de la suscripción.
 **Terminado cuando:**
-- [ ] Al suscribirse, la tienda queda en `trialing` con `trial_end` a 14 días.
-- [ ] Flujo completo con tarjeta de prueba `4242…` usando `stripe listen` en local.
-- [ ] Eventos duplicados no se procesan dos veces (prueba).
-- [ ] Estados `trialing`, `active`, `past_due`, `canceled` se reflejan en la app.
+- [x] Al suscribirse, la tienda queda en `trialing` con `trial_end` a 14 días (Checkout pide 14 días; el
+      webhook lo aplica — probado con eventos firmados).
+- [ ] Flujo completo con tarjeta de prueba `4242…` usando `stripe listen` en local — **lo verifica el
+      usuario** con sus claves de prueba (guía en `docs/STRIPE.md`); `npm run test:stripe` ayuda.
+- [x] Eventos duplicados no se procesan dos veces (pgTAP + integración contra la ruta real).
+- [x] Estados `trialing`, `active`, `past_due`, `canceled` se reflejan en la app y en el acceso real
+      (servidor + triggers de BD).
 
 ## Fase 10 — Landing con GSAP
 **Objetivos:** landing del producto con hero animado que muestra la interfaz del POS, secciones de

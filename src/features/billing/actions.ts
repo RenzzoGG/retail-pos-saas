@@ -20,7 +20,7 @@ export async function startCheckoutAction(): Promise<BillingState> {
     return {
       message: sub.data?.stripeCustomerId
         ? "This store already has a subscription. Use “Manage billing” to change it."
-        : "This store has a complimentary demo plan; there is nothing to pay.",
+        : "This plan comes with the demo data and isn't linked to Stripe; there is nothing to pay.",
     };
   }
   let url: string;

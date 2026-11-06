@@ -798,16 +798,72 @@ consultas y validaciones de cada módulo, y escala mejor que carpetas gigantes d
    cómo reactivarlos desde el panel de Supabase.
 5. **Stripe:** endpoint de webhook apuntando a `https://<dominio>/api/stripe/webhook` en modo prueba.
 
-## 8. Suscripción (Stripe, modo prueba)
+## 8. Suscripción (Stripe, modo prueba) — implementado en la Fase 9
 
 - **Un solo plan:** *Stocktill Monthly*, **19 USD/mes**, con **14 días de prueba gratis**
-  (`subscription_data.trial_period_days = 14` en Checkout).
-- El owner inicia Checkout desde *Billing*; gestiona tarjeta y cancelación en el **Billing Portal**.
-- Eventos procesados: `checkout.session.completed`, `customer.subscription.created|updated|deleted`,
-  `customer.subscription.trial_will_end`, `invoice.payment_failed`.
-- **Acceso según estado:** `trialing` y `active` → acceso completo; `past_due` → acceso con aviso;
-  `canceled`/`unpaid` → solo lectura y página de facturación.
-- El ID del precio llega por variable de entorno (`STRIPE_PRICE_ID`), nunca escrito en el código.
+  (`subscription_data.trial_period_days = 14` en Checkout). La prueba solo se da la primera vez, cuando la
+  tienda nunca tuvo una suscripción en Stripe.
+- El producto y el precio los crea el usuario con `scripts/stripe-setup.mjs`, de forma idempotente
+  (`lookup_key`). El ID del precio llega por `STRIPE_PRICE_ID` y nunca se escribe en el código.
+- **Solo el owner** ve `/app/billing` (`requireRole(["owner"])`; admin y cajero reciben 404). Desde ahí
+  inicia **Checkout** y abre el **Billing Portal** (tarjeta, cancelación, facturas), ambos alojados en
+  Stripe.
+- Guía para el usuario: `docs/STRIPE.md`.
+- **SDK `stripe` 23.1.0**, con `apiVersion` fijada en `2026-10-28.endive`. Desde la versión `basil`,
+  `current_period_end` vive en los items de la suscripción.
+- Las claves `sk_live_` se rechazan. Sin claves (CI), Billing lo indica y todo lo demás funciona.
+
+### Acceso según el estado (`app.store_access`)
+| Estado | Acceso | Qué se puede hacer |
+| --- | --- | --- |
+| sin suscripción, `incomplete` | `setup` | Productos, stock, importación, clientes, equipo y ajustes. **No** se vende ni se devuelve. |
+| `trialing`, `active` | `full` | Todo. |
+| `past_due` | `full` | Todo, con un aviso para actualizar la tarjeta (Stripe reintenta el cobro). |
+| `canceled`, `unpaid`, `incomplete_expired`, `paused` | `read_only` | Ver datos, reportes y exportaciones; Billing, Settings y Team. Se bloquean ventas, devoluciones, entradas, importación, productos y clientes. |
+
+**Dónde se aplica:**
+- **En la base de datos:** con triggers `BEFORE INSERT/UPDATE/DELETE`. `sales` y `returns` exigen `full`;
+  `products`, `product_costs`, `stock_entries`, `import_batches` y `customers` exigen `full` o `setup`.
+  Usar triggers cubre **todos** los caminos de escritura (las funciones DEFINER como `create_sale` y los
+  INSERT/UPDATE con RLS) sin reescribir esas funciones. Solo aplican a usuarios con sesión
+  (`auth.uid()`): el webhook y el seed no son usuarios.
+- **En el servidor:** `checkAccess` (`src/features/billing/service.ts`) en cada servicio de escritura, que
+  devuelve un mensaje claro.
+- **En la interfaz:** banner global, la caja cerrada y sin formulario de devolución.
+
+La demo usa suscripciones del seed no vinculadas a Stripe (`stripe_customer_id` nulo): la tienda demo está
+`active` y Other Shop `trialing`.
+
+### Webhook (`POST /api/stripe/webhook`)
+**Pasos:**
+1. Verifica la firma `Stripe-Signature` (HMAC del timestamp y el cuerpo crudo, con 5 minutos de
+   tolerancia) usando `STRIPE_WEBHOOK_SECRET`. Si falta o no es válida responde **400** y no escribe nada.
+2. `toChange(event)` (pura) traduce el evento en un cambio de la suscripción de la tienda. La tienda viene
+   de `client_reference_id` o de `metadata.store_id`, que se fija en la sesión **y** en la suscripción.
+3. `apply_stripe_event` (SQL, solo `service_role`) registra y aplica el evento **en una sola
+   transacción**:
+   - el `id` del evento es la clave de idempotencia: un evento repetido devuelve `duplicate` y no se
+     aplica;
+   - un evento más viejo que el último aplicado (`last_event_at`, comparado con `event.created`) devuelve
+     `stale`;
+   - una tienda desconocida devuelve `ignored`.
+   - Si algo falla, no queda registrado: la ruta responde 500 y Stripe reintenta.
+
+**Eventos que procesa:**
+
+| Evento | Para qué |
+| --- | --- |
+| `checkout.session.completed` | Vincula tienda, customer y suscripción. No trae estado, así que no adelanta `last_event_at`. |
+| `customer.subscription.created` / `.updated` / `.deleted` | Fuente de verdad: estado, fin de la prueba, fin del periodo, cancelación al final del periodo. Con `deleted` queda `canceled`. |
+| `invoice.payment_failed` | `past_due` al instante (el aviso aparece aunque `subscription.updated` llegue después). |
+| `customer.subscription.trial_will_end` | Se registra; todavía no hay correos. |
+
+Cualquier otro evento responde 200 y se ignora. No hay llamadas a la API de Stripe dentro del webhook, así
+que se puede probar sin red.
+
+**Clave secreta de Supabase:** la ruta del webhook es **el único lugar** que la usa
+(`src/lib/supabase/admin.ts`). Una regla de ESLint (`no-restricted-imports`) impide importarla en
+cualquier otro archivo.
 
 ## 9. Riesgos y mitigaciones
 

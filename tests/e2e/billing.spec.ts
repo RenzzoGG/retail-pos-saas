@@ -13,7 +13,7 @@ test("owner: Billing shows the plan; admins and cashiers can't open it", async (
   await expect(owner.getByRole("heading", { name: "Billing" })).toBeVisible();
   await expect(owner.getByTestId("billing-status")).toHaveText(/Active \(complimentary demo plan\)/);
   await expect(owner.getByTestId("billing-access")).toContainText("Full access");
-  await expect(owner.getByText("This store has a complimentary demo plan: there is nothing to pay or manage.")).toBeVisible();
+  await expect(owner.getByTestId("billing-unlinked")).toContainText("isn't linked to Stripe");
   await expect(owner.getByTestId("subscription-banner")).toHaveCount(0); // nothing to warn about
 
   for (const email of [DEMO.admin, DEMO.cashier]) {
