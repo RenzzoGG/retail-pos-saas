@@ -150,9 +150,9 @@ funciones y precios, accesible y responsive.
 **Objetivos:** suite E2E de los flujos clave, Dockerfile multi-stage, despliegue en Railway con Supabase
 Cloud (plan gratuito), README de portafolio.
 **Terminado cuando:**
-- [ ] Playwright (ya instalado en la Fase 3, con el flujo de registro/invitación/roles) cubre además venta con lector simulado, devolución e importación; pasa en CI.
-- [ ] `docker build` produce una imagen pequeña que arranca con `docker run` y pasa el healthcheck.
-- [ ] App desplegada en Railway y funcionando con datos de demo (el usuario configura variables y hace push).
-- [ ] README con descripción, capturas, arquitectura, cómo correrlo en local y decisiones técnicas.
-- [ ] README aclara que **Stocktill es una marca ficticia**, advierte que el proyecto gratuito de
+- [x] Playwright (ya instalado en la Fase 3, con el flujo de registro/invitación/roles) cubre además venta con lector simulado, devolución e importación; pasa en CI. *(20/20 en local; en CI se confirma con el próximo push.)*
+- [x] `docker build` produce una imagen pequeña que arranca con `docker run` y pasa el healthcheck. *(94 MB comprimida, usuario `node`, `healthy`; job `docker` en CI.)*
+- [ ] App desplegada en Railway y funcionando con datos de demo (el usuario configura variables y hace push). *(Pendiente del usuario: guía en `docs/DEPLOY.md`; todo lo del repo está listo.)*
+- [x] README con descripción, capturas, arquitectura, cómo correrlo en local y decisiones técnicas.
+- [x] README aclara que **Stocktill es una marca ficticia**, advierte que el proyecto gratuito de
       Supabase se pausa por inactividad (y cómo reactivarlo) y menciona la licencia MIT.
