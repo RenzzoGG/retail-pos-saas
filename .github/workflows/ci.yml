@@ -42,6 +42,40 @@ jobs:
       - name: Build
         run: npm run build
 
+  docker:
+    name: Production Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      # Placeholder public values: the image only has to build, start as a
+      # non-root user and pass its healthcheck (no database needed for that).
+      - name: Build the image
+        run: >
+          docker build -t stocktill:ci
+          --build-arg NEXT_PUBLIC_SITE_URL=http://localhost:8080
+          --build-arg NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+          --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_placeholder
+          .
+
+      - name: Run it and wait for the healthcheck
+        run: |
+          docker run -d --name stocktill -p 8080:8080 -e PORT=8080 stocktill:ci
+          for i in $(seq 1 30); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' stocktill)
+            [ "$status" = healthy ] && break
+            sleep 2
+          done
+          docker inspect -f '{{.State.Health.Status}}' stocktill | grep -qx healthy
+          curl -fsS http://localhost:8080/api/health
+          test "$(docker exec stocktill whoami)" = node
+          docker image inspect stocktill:ci --format 'Image size: {{.Size}} bytes'
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs stocktill
+
   database:
     name: Database, integration and E2E tests
     runs-on: ubuntu-latest

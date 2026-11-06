@@ -834,26 +834,50 @@ consultas y validaciones de cada módulo, y escala mejor que carpetas gigantes d
   `db:lint`); `test:e2e` se añade en la Fase 11. Con protección de rama en `main` (configurada por el usuario en
   GitHub) para que no se pueda fusionar si falla.
 
-## 7. Despliegue con Docker en Railway
+## 7. Despliegue con Docker en Railway (implementado en la Fase 11)
 
-1. **Dockerfile multi-stage** (npm):
-   - `deps`: `node:24-slim`, `npm ci`.
-   - `build`: copia código, `next build` con `output: 'standalone'`.
-   - `runner`: `node:24-slim`, solo `.next/standalone`, `.next/static` y `public`; usuario no root;
-     `HEALTHCHECK`; `CMD ["node", "server.js"]`.
+1. **Dockerfile multi-stage** (`Dockerfile` en la raíz, npm):
+   - `deps`: `node:24-slim`, `npm ci` (con `vendor/`).
+   - `build`: `next build` con `output: 'standalone'`; los `NEXT_PUBLIC_*` llegan como `ARG`.
+   - `runner`: `node:24-slim`, solo `.next/standalone`, `.next/static` y `public` (propiedad de `node`);
+     `USER node`; `HOSTNAME=0.0.0.0` (Docker pone ahí el id del contenedor y `server.js` escucha en
+     `HOSTNAME`); `PORT` lo inyecta Railway (3000 por defecto); `HEALTHCHECK` contra `/api/health`;
+     `CMD ["node", "server.js"]` en forma exec (node es PID 1 y recibe `SIGTERM`).
 
-   *Por qué multi-stage + standalone:* la imagen final no lleva herramientas de build ni
-   `node_modules` completos → más pequeña (~150–250 MB), arranca más rápido y tiene menos superficie
-   de ataque.
-2. **Variables públicas en build:** `NEXT_PUBLIC_*` se incrustan al construir, así que Railway debe
-   pasarlas como build args.
-3. **Railway:** servicio conectado al repo de GitHub, construye con el Dockerfile, variables de entorno
-   configuradas en el panel (el usuario las introduce), dominio `*.up.railway.app`, healthcheck en
-   `/api/health`.
+   *Por qué multi-stage + standalone:* la imagen final no lleva herramientas de build, código fuente ni
+   `node_modules` completos. Medido: **94 MB comprimida** (lo que se descarga) y ~310 MB descomprimida,
+   de los que ~250 MB son la base `node:24-slim` y 62 MB la app. La imagen de desarrollo pesa 1,78 GB.
+   Las fuentes de pdfkit se trazan con `outputFileTracingIncludes`; los E2E de ticket, devolución,
+   importación y reportes pasaron contra el contenedor (`npm run docker:prod` + `playwright test`).
+2. **Variables públicas en build:** `NEXT_PUBLIC_*` se incrustan al construir (también en el CSP), así que
+   Railway las pasa como build args: basta con que el `Dockerfile` declare un `ARG` con el mismo nombre.
+3. **Railway:** servicio conectado al repo de GitHub, construye con el `Dockerfile`, variables en el panel
+   (las introduce el usuario), healthcheck `/api/health` en *Settings* (Railway ignora `HEALTHCHECK`).
+   Sin `railway.json`. Dominio propio `stocktill.renzzogg.com` vía Cloudflare. Guía: `docs/DEPLOY.md`.
 4. **Base de datos:** Supabase Cloud, **plan gratuito**. Migraciones con `supabase db push` (paso manual
-   o job de CI con aprobación). El README advertirá que los proyectos gratuitos inactivos se pausan y
-   cómo reactivarlos desde el panel de Supabase.
-5. **Stripe:** endpoint de webhook apuntando a `https://<dominio>/api/stripe/webhook` en modo prueba.
+   del usuario). El seed local **no** se aplica: la demo pública se crea con `reset_demo_store` (§7b).
+5. **Stripe:** endpoint de webhook `https://stocktill.renzzogg.com/api/stripe/webhook` en modo prueba.
+6. **CI:** el job `docker` construye la imagen, la arranca y exige `healthy` y usuario `node`.
+
+### Encabezados de seguridad
+`src/lib/security-headers.ts`, aplicados a todas las rutas desde `headers()` de `next.config.ts`:
+
+| Encabezado | Valor | Para qué |
+| --- | --- | --- |
+| `Content-Security-Policy` | `default-src 'self'`; `script-src 'self' 'unsafe-inline'`; `connect-src 'self'` + Supabase (https/wss); `frame-ancestors 'none'`; `form-action 'self'` + Checkout/Billing de Stripe; `object-src 'none'`; `base-uri 'self'` | Limita de dónde se cargan scripts, estilos, fuentes y conexiones, y a dónde se envían formularios |
+| `X-Frame-Options` | `DENY` | Gemelo antiguo de `frame-ancestors` (anti-clickjacking) |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Otros sitios solo ven el origen, nunca rutas con ids |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains` (solo con sitio https) | El navegador no vuelve a usar http; sin `preload` |
+| `X-Content-Type-Options` | `nosniff` | No adivinar tipos MIME |
+| `Permissions-Policy` | cámara, micrófono, geolocalización, pago y USB desactivados | El lector de códigos es un teclado; no hace falta nada de eso |
+| `Cross-Origin-Opener-Policy` | `same-origin` | Aísla la ventana de popups de otros orígenes |
+
+**CSP estático y no con nonce:** Next.js solo puede añadir nonces en páginas renderizadas por petición, y
+la app usa Cache Components/PPR (la landing es estática, Lighthouse 96). Con nonce todo sería dinámico. La
+contrapartida es `'unsafe-inline'` en `script-src`, que Next necesita para hidratar. Lo compensan: sin
+orígenes externos de script, React escapa todo el contenido y no hay `dangerouslySetInnerHTML` con datos
+del usuario. GSAP no necesita nada externo (va en el bundle) y escribe estilos inline (`style-src
+'unsafe-inline'`). La E2E `security-headers.spec.ts` comprueba que no hay violaciones de CSP.
 
 ## 8. Suscripción (Stripe, modo prueba) — implementado en la Fase 9
 
