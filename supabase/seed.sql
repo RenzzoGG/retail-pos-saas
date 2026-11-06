@@ -11,7 +11,8 @@
 --   owner@other.stocktill.test   owner   of "Other Shop" (isolation checks)
 --
 -- Stock and costs are loaded through create_stock_entry() and the demo sales
--- through create_sale(), so the ledger is consistent (stock = sum of movements).
+-- (60 days of history) through create_sale() / create_return(), so the ledger
+-- is consistent (stock = sum of movements).
 -- Runs automatically on `supabase db reset` / first `supabase start`.
 -- =============================================================================
 
@@ -104,23 +105,6 @@ select p.id, p.store_id, p.sku, p.barcode, p.name, p.category, p.sale_price, p.l
        end
 from seed_products p;
 
--- -----------------------------------------------------------------------------
--- Opening stock: one stock entry per store, made "as" each store's owner.
--- request.jwt.claims is what PostgREST sets from a verified JWT; here the seed
--- (running as postgres, locally) sets it so auth.uid() returns the owner.
--- No keys or tokens are involved.
--- -----------------------------------------------------------------------------
-select set_config('request.jwt.claims',
-  '{"sub":"a0000000-0000-4000-8000-000000000001","role":"authenticated"}', false);
-
-select public.create_stock_entry(
-  'b0000000-0000-4000-8000-000000000001',
-  (select jsonb_agg(jsonb_build_object('product_id', id, 'quantity', initial_qty, 'unit_cost', unit_cost))
-   from seed_products where store_id = 'b0000000-0000-4000-8000-000000000001'),
-  'Demo Distributor Inc.',
-  'Opening stock'
-);
-
 -- Customers of the demo store.
 insert into public.customers (id, store_id, name, document_id, phone, email, created_by)
 values
@@ -128,7 +112,260 @@ values
   ('d0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000001', 'Sam Taylor',    'ID-1002', '+1 555 0102', 'sam.taylor@example.com',    'a0000000-0000-4000-8000-000000000001'),
   ('d0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001', 'Alex Morgan',   null,      '+1 555 0103', null,                        'a0000000-0000-4000-8000-000000000001');
 
--- Two demo sales made by the cashier.
+-- -----------------------------------------------------------------------------
+-- Acting as a user: request.jwt.claims is what PostgREST sets from a verified
+-- JWT; here the seed (running as postgres, locally) sets it so auth.uid()
+-- returns that user. No keys or tokens are involved.
+-- -----------------------------------------------------------------------------
+
+-- -----------------------------------------------------------------------------
+-- 60 days of demo history (dashboard and reports). Deterministic: setseed().
+--
+--  1. Plan the sales first (3-9 a day, more on weekends, opening hours, mixed
+--     cashiers, customers, discounts within the cashier limit, cash / card /
+--     transfer / split payments) and ~12 returns, 1 in 4 of them a write-off.
+--  2. Opening stock = today's demo stock + units planned to be sold − units
+--     that will come back to stock. So the stock you see today is the same as
+--     before this history existed (low-stock products stay low).
+--  3. Replay everything in time order through create_sale / create_return, as
+--     the real users, so the ledger stays consistent (stock = Σ movements).
+--  4. Move the timestamps into the past. Only the seed does this, locally: it
+--     briefly disables the user triggers of the affected tables (the activity
+--     log is append-only for everyone else) and re-enables them right after.
+-- -----------------------------------------------------------------------------
+create temporary table seed_plan (
+  seq serial primary key,
+  at timestamptz not null,
+  actor uuid not null,
+  customer uuid,
+  items jsonb not null,
+  sale_discount numeric not null,
+  payments jsonb not null,
+  ret_at timestamptz,
+  ret_restock boolean,
+  sale_id uuid
+);
+
+do $$
+declare
+  v_store constant uuid := 'b0000000-0000-4000-8000-000000000001';
+  v_tz constant text := 'America/New_York';
+  v_today date := (now() at time zone v_tz)::date;
+  v_customers uuid[] := array['d0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000002',
+                              'd0000000-0000-4000-8000-000000000003']::uuid[];
+  v_pool uuid[];
+  v_day date;
+  v_n integer;
+  v_at timestamptz;
+  v_k integer;
+  v_chosen uuid[];
+  v_items jsonb;
+  v_product uuid;
+  v_price numeric;
+  v_qty integer;
+  v_disc numeric;
+  v_gross numeric;
+  v_sale_disc numeric;
+  v_total numeric;
+  v_r double precision;
+  v_payments jsonb;
+  v_card numeric;
+begin
+  perform setseed(0.42);
+  -- Cheaper items sell more often.
+  select array_agg(p.id order by p.sku, g)
+    into v_pool
+  from seed_products p,
+       generate_series(1, case when p.sale_price < 15 then 6 when p.sale_price < 25 then 4
+                               when p.sale_price < 45 then 2 else 1 end) g
+  where p.store_id = v_store;
+
+  for v_d in reverse 60..0 loop
+    v_day := v_today - v_d;
+    v_n := 3 + floor(random() * 5)::integer + case when extract(isodow from v_day) in (6, 7) then 2 else 0 end;
+    for v_i in 1..v_n loop
+      v_at := (v_day + time '09:00' + random() * interval '11 hours') at time zone v_tz;
+      continue when v_at > now() - interval '10 minutes'; -- today: only what already happened
+
+      v_k := 1 + floor(random() * random() * 3.5)::integer;
+      v_chosen := '{}';
+      v_items := '[]';
+      v_gross := 0;
+      for v_j in 1..v_k loop
+        v_product := v_pool[1 + floor(random() * array_length(v_pool, 1))::integer];
+        continue when v_product = any (v_chosen);
+        v_chosen := v_chosen || v_product;
+        select sale_price into v_price from seed_products where id = v_product;
+        v_qty := case when v_price < 15 and random() < 0.35 then 2 else 1 end;
+        v_disc := case when v_j = 1 and random() < 0.15 then round(v_price * v_qty * 0.05, 2) else 0 end;
+        v_items := v_items || jsonb_build_object('product_id', v_product, 'quantity', v_qty, 'discount', v_disc);
+        v_gross := v_gross + v_price * v_qty - v_disc;
+      end loop;
+      -- Line 5 % + sale 5 % stays within the cashier's 10 % limit.
+      v_sale_disc := case when random() < 0.10 then round(v_gross * 0.05, 2) else 0 end;
+      v_total := v_gross - v_sale_disc; -- prices include tax
+
+      v_r := random();
+      if v_r < 0.45 then
+        v_payments := jsonb_build_array(jsonb_build_object('method', 'cash', 'amount', v_total,
+                        'tendered', ceil(v_total / 5) * 5));
+      elsif v_r < 0.85 then
+        v_payments := jsonb_build_array(jsonb_build_object('method', 'card', 'amount', v_total));
+      elsif v_r < 0.93 then
+        v_payments := jsonb_build_array(jsonb_build_object('method', 'transfer', 'amount', v_total));
+      else
+        v_card := floor(v_total / 2);
+        v_payments := jsonb_build_array(
+          jsonb_build_object('method', 'card', 'amount', v_card),
+          jsonb_build_object('method', 'cash', 'amount', v_total - v_card, 'tendered', ceil(v_total - v_card)));
+      end if;
+
+      v_r := random();
+      insert into seed_plan (at, actor, customer, items, sale_discount, payments)
+      values (
+        v_at,
+        case when v_r < 0.6 then 'a0000000-0000-4000-8000-000000000003'::uuid
+             when v_r < 0.85 then 'a0000000-0000-4000-8000-000000000002'::uuid
+             else 'a0000000-0000-4000-8000-000000000001'::uuid end,
+        case when random() < 0.3 then v_customers[1 + floor(random() * 3)::integer] end,
+        v_items, v_sale_disc, v_payments);
+    end loop;
+  end loop;
+
+  -- ~12 returns of the first line (1 unit), 1-3 days after the sale; every 4th is damaged.
+  with ranked as (
+    select seq, at, row_number() over (order by at) as rn
+    from seed_plan where at < now() - interval '4 days'
+  )
+  update seed_plan p
+     set ret_at = r.at + (1 + r.rn % 3) * interval '1 day' + interval '3 hours',
+         ret_restock = (r.rn / 30) % 4 <> 1
+    from ranked r
+   where p.seq = r.seq and r.rn % 30 = 7;
+end;
+$$;
+
+-- Opening stock, as the owner.
+select set_config('request.jwt.claims',
+  '{"sub":"a0000000-0000-4000-8000-000000000001","role":"authenticated"}', false);
+
+select public.create_stock_entry(
+  'b0000000-0000-4000-8000-000000000001',
+  (select jsonb_agg(jsonb_build_object('product_id', p.id, 'quantity', p.initial_qty + coalesce(x.sold, 0) - coalesce(x.back, 0),
+                                       'unit_cost', p.unit_cost))
+   from seed_products p
+   left join (
+     select (i ->> 'product_id')::uuid as product_id,
+            sum((i ->> 'quantity')::integer) as sold,
+            sum(case when sp.ret_restock and i.ord = 1 then 1 else 0 end) as back
+     from seed_plan sp, jsonb_array_elements(sp.items) with ordinality i(i, ord)
+     group by 1
+   ) x on x.product_id = p.id
+   where p.store_id = 'b0000000-0000-4000-8000-000000000001'),
+  'Demo Distributor Inc.',
+  'Opening stock'
+);
+
+-- Replay sales and returns in time order, each as its user.
+do $$
+declare
+  v_event record;
+  v_sale_id uuid;
+  v_item uuid;
+begin
+  for v_event in
+    select at, 'sale' as kind, seq from seed_plan
+    union all
+    select ret_at, 'return', seq from seed_plan where ret_at is not null
+    order by 1
+  loop
+    if v_event.kind = 'sale' then
+      perform set_config('request.jwt.claims',
+        json_build_object('sub', (select actor from seed_plan where seq = v_event.seq), 'role', 'authenticated')::text, false);
+      select public.create_sale('b0000000-0000-4000-8000-000000000001', p.items, p.payments, gen_random_uuid(),
+                                p.customer, p.sale_discount)
+        into v_sale_id
+      from seed_plan p where p.seq = v_event.seq;
+      update seed_plan set sale_id = v_sale_id where seq = v_event.seq;
+    else
+      perform set_config('request.jwt.claims',
+        '{"sub":"a0000000-0000-4000-8000-000000000002","role":"authenticated"}', false); -- the admin
+      select si.id into v_item
+      from seed_plan p
+      join public.sale_items si on si.sale_id = p.sale_id and si.product_id = (p.items -> 0 ->> 'product_id')::uuid
+      where p.seq = v_event.seq;
+      perform public.create_return(
+        p.sale_id,
+        jsonb_build_array(jsonb_build_object('sale_item_id', v_item, 'quantity', 1, 'restock', p.ret_restock)),
+        case when p.ret_restock then 'Changed their mind' else 'Damaged, written off' end,
+        case when p.payments -> 0 ->> 'method' = 'transfer' then 'transfer'::public.payment_method
+             when p.payments -> 0 ->> 'method' = 'card' then 'card'::public.payment_method
+             else 'cash'::public.payment_method end)
+      from seed_plan p where p.seq = v_event.seq;
+    end if;
+  end loop;
+end;
+$$;
+
+-- Move it all into the past (local seed only; triggers re-enabled right after).
+alter table public.activity_log disable trigger user;
+alter table public.sales disable trigger user;
+alter table public.returns disable trigger user;
+alter table public.products disable trigger user;
+alter table public.customers disable trigger user;
+alter table public.stock_entries disable trigger user;
+
+do $$
+declare
+  v_store constant uuid := 'b0000000-0000-4000-8000-000000000001';
+  v_open timestamptz := ((now() at time zone 'America/New_York')::date - 61 + time '08:00') at time zone 'America/New_York';
+begin
+  -- Catalog, customers and the opening stock entry: 61 days ago.
+  update public.products set created_at = v_open, updated_at = v_open where store_id = v_store;
+  update public.customers set created_at = v_open, updated_at = v_open where store_id = v_store;
+  update public.stock_entries set created_at = v_open where store_id = v_store;
+  update public.stock_movements set created_at = v_open where store_id = v_store and type = 'entry';
+  update public.activity_log set created_at = v_open where store_id = v_store;
+
+  -- Sales: the sale, its payments, its stock movements and its log row.
+  update public.sales s set created_at = p.at from seed_plan p where s.id = p.sale_id;
+  update public.sale_payments sp set created_at = p.at from seed_plan p where sp.sale_id = p.sale_id;
+  update public.stock_movements m set created_at = p.at
+    from seed_plan p join public.sale_items si on si.sale_id = p.sale_id
+   where m.ref_id = si.id;
+  update public.activity_log a
+     set created_at = p.at, after = jsonb_set(a.after, '{created_at}', to_jsonb(p.at))
+    from seed_plan p
+   where a.table_name = 'sales' and a.action = 'insert' and a.record_id = p.sale_id::text;
+
+  -- Returns: the return, its movements, its log row and the sale's status change.
+  update public.returns r set created_at = p.ret_at from seed_plan p where r.sale_id = p.sale_id and p.ret_at is not null;
+  update public.stock_movements m set created_at = r.created_at
+    from public.returns r join public.return_items ri on ri.return_id = r.id
+   where m.ref_id = ri.id and r.store_id = v_store;
+  update public.activity_log a
+     set created_at = r.created_at, after = jsonb_set(a.after, '{created_at}', to_jsonb(r.created_at))
+    from public.returns r
+   where a.table_name = 'returns' and a.record_id = r.id::text;
+  update public.activity_log a
+     set created_at = p.ret_at,
+         before = jsonb_set(a.before, '{created_at}', to_jsonb(p.at)),
+         after = jsonb_set(a.after, '{created_at}', to_jsonb(p.at))
+    from seed_plan p
+   where a.table_name = 'sales' and a.action = 'update' and a.record_id = p.sale_id::text;
+end;
+$$;
+
+alter table public.activity_log enable trigger user;
+alter table public.sales enable trigger user;
+alter table public.returns enable trigger user;
+alter table public.products enable trigger user;
+alter table public.customers enable trigger user;
+alter table public.stock_entries enable trigger user;
+
+drop table seed_plan;
+
+-- Two more demo sales today, made by the cashier (the latest sale numbers).
 select set_config('request.jwt.claims',
   '{"sub":"a0000000-0000-4000-8000-000000000003","role":"authenticated"}', false);
 
