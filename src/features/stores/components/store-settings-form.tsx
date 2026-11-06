@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { FormMessage } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/button";
-import { CheckboxField, SelectField, TextField } from "@/components/ui/field";
+import { CheckboxField, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { type FormState, initialFormState } from "@/lib/forms/state";
 import { listTimeZones } from "@/lib/timezone";
 import { CURRENCIES } from "../schemas";
@@ -16,6 +16,8 @@ type Defaults = {
   timezone: string;
   /** Only in Settings (not shown during onboarding). */
   cashierDiscountLimit?: string;
+  /** Only in Settings. */
+  ticketFooter?: string;
 };
 
 type Props = {
@@ -81,6 +83,17 @@ export function StoreSettingsForm({ action, defaults, submitLabel, pendingText }
         hint="Checked: the price on the shelf is what customers pay. Unchecked: tax is added at checkout."
         defaultChecked={v ? v.pricesIncludeTax === "on" : defaults.pricesIncludeTax}
       />
+      {defaults.ticketFooter !== undefined ? (
+        <TextAreaField
+          name="ticketFooter"
+          label="Receipt note (optional)"
+          rows={3}
+          maxLength={200}
+          hint="Printed at the bottom of every receipt, for example a thank-you message or your website."
+          defaultValue={v?.ticketFooter ?? defaults.ticketFooter}
+          errors={state.fieldErrors?.ticketFooter}
+        />
+      ) : null}
       <SubmitButton pendingText={pendingText}>{submitLabel}</SubmitButton>
     </form>
   );

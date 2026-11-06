@@ -15,7 +15,7 @@ export default async function SettingsPage() {
   const settings = await getStoreSettings(await createClient(), store.storeId);
   return (
     <>
-      <PageHeader title="Settings" description="Store name, currency and tax. Past sales keep the settings they were made with." />
+      <PageHeader title="Settings" description="Store name, currency, tax and receipt note. Past sales keep the settings they were made with." />
       <Card>
         {settings.ok ? (
           <StoreSettingsForm
@@ -27,6 +27,7 @@ export default async function SettingsPage() {
               pricesIncludeTax: settings.data.pricesIncludeTax,
               timezone: settings.data.timezone,
               cashierDiscountLimit: String(settings.data.maxCashierDiscountPct),
+              ticketFooter: settings.data.ticketFooter ?? "",
             }}
             submitLabel="Save settings"
             pendingText="Saving…"

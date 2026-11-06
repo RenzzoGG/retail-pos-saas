@@ -120,8 +120,9 @@ export function saleReceiptLines(r: SaleReceiptData): ReceiptLine[] {
   }
 
   lines.push(RULE);
-  if (r.footer) for (const part of wrap(r.footer)) lines.push({ text: part, center: true });
-  lines.push({ text: "Thank you!", center: true });
+  // The store's own note replaces the default thank-you line (no duplicates).
+  if (r.footer) for (const paragraph of r.footer.split("\n")) for (const part of wrap(paragraph)) lines.push({ text: part, center: true });
+  else lines.push({ text: "Thank you!", center: true });
   return lines;
 }
 

@@ -35,10 +35,17 @@ export const storeSettingsSchema = z
       .trim()
       .min(1, "Choose a time zone.")
       .refine(isValidTimeZone, "Choose a valid time zone."),
+    /** Settings only: free note printed at the bottom of receipts (empty = none). */
+    ticketFooter: z.preprocess(
+      (v) => (typeof v === "string" ? v.replace(/\r\n?/g, "\n").trim() : v),
+      z.string().max(200, "Keep the note under 200 characters.").optional(),
+    ),
   })
-  .transform(({ taxRatePercent, ...rest }) => ({
+  .transform(({ taxRatePercent, ticketFooter, ...rest }) => ({
     ...rest,
     taxRate: Math.round(taxRatePercent * 100) / 10000,
+    /** Absent = field not in the form (onboarding); null = cleared. */
+    ...(ticketFooter === undefined ? {} : { ticketFooter: ticketFooter === "" ? null : ticketFooter }),
   }));
 
 export type StoreSettingsInput = z.output<typeof storeSettingsSchema>;

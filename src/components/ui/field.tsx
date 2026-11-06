@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 const CONTROL =
   "block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm " +
@@ -58,6 +58,31 @@ export function TextField({ name, label, errors, hint, ...input }: TextFieldProp
           aria-invalid={invalid || undefined}
           className={CONTROL}
           {...input}
+        />
+      )}
+    </Field>
+  );
+}
+
+type TextAreaFieldProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "id" | "name"> & {
+  name: string;
+  label: string;
+  errors?: string[] | undefined;
+  hint?: string;
+};
+
+export function TextAreaField({ name, label, errors, hint, ...textarea }: TextAreaFieldProps) {
+  const id = `field-${name}`;
+  return (
+    <Field id={id} label={label} errors={errors} {...(hint ? { hint } : {})}>
+      {(describedBy, invalid) => (
+        <textarea
+          id={id}
+          name={name}
+          aria-describedby={describedBy}
+          aria-invalid={invalid || undefined}
+          className={CONTROL}
+          {...textarea}
         />
       )}
     </Field>

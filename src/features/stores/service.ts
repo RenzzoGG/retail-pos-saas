@@ -61,6 +61,7 @@ export async function updateStoreSettings(
       prices_include_tax: input.pricesIncludeTax,
       timezone: input.timezone,
       ...(input.cashierDiscountLimit === undefined ? {} : { max_cashier_discount_pct: input.cashierDiscountLimit }),
+      ...(input.ticketFooter === undefined ? {} : { ticket_footer: input.ticketFooter }),
     })
     .eq("id", actor.storeId)
     .select("id");

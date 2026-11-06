@@ -52,7 +52,7 @@ describe("profit after returns", () => {
 describe("receipt layout", () => {
   const receipt: SaleReceiptData = {
     storeName: "Stocktill Demo Electronics",
-    footer: "Returns within 30 days with this ticket.",
+    footer: "Thanks for shopping with us!\nVisit stocktill.test",
     timeZone: "America/New_York",
     currency: "USD",
     number: 42,
@@ -92,10 +92,12 @@ describe("receipt layout", () => {
       "Tax 8.25% (included)",
       "Card",
       "Cash received",
-      "Returns within 30 days",
+      "Thanks for shopping with us!",
+      "Visit stocktill.test",
     ]) {
       expect(text).toContain(expected);
     }
+    expect(text).not.toContain("Thank you!"); // the store's note replaces the default line
     expect(text).toMatch(/TOTAL\s+\$39\.98/);
     expect(text).toMatch(/Change\s+\$0\.02/);
     expect(text).toMatch(/Discounts\s+-\$5\.00/);
@@ -117,6 +119,11 @@ describe("receipt layout", () => {
     expect(text).toContain("RETURNS");
     expect(text).toMatch(/1 item, Cash\s+-\$8\.64/);
     expect(text).toMatch(/Net total\s+\$31\.34/);
+  });
+
+  it("without a receipt note prints the default thank-you line", () => {
+    const lines = saleReceiptLines({ ...receipt, footer: null });
+    expect(lines.at(-1)?.text).toBe("Thank you!");
   });
 
   it("return receipt lists items, write-offs, reason and refund", () => {

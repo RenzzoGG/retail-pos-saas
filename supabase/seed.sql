@@ -49,7 +49,7 @@ where u.email like '%.stocktill.test';
 insert into public.stores (id, name, slug, currency, tax_rate, prices_include_tax, timezone, ticket_footer, created_by)
 values
   ('b0000000-0000-4000-8000-000000000001', 'Stocktill Demo Electronics', 'demo-electronics',
-   'USD', 0.0825, true, 'America/New_York', 'Thanks for shopping with us! Returns within 30 days with this ticket.',
+   'USD', 0.0825, true, 'America/New_York', 'Thanks for shopping with us!',
    'a0000000-0000-4000-8000-000000000001'),
   ('b0000000-0000-4000-8000-000000000002', 'Other Shop', 'other-shop',
    'EUR', 0.2100, false, 'Europe/Madrid', null,
