@@ -27,7 +27,8 @@
     "test:e2e": "playwright test",
     "dev:local": "node scripts/dev-local.mjs",
     "test:stripe": "node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run -c vitest.stripe.config.mts",
-    "docker:prod": "node scripts/docker-prod-local.mjs"
+    "docker:prod": "node scripts/docker-prod-local.mjs",
+    "test:smoke": "playwright test -c playwright.smoke.config.ts"
   },
   "dependencies": {
     "@gsap/react": "2.1.2",
