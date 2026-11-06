@@ -48,15 +48,33 @@ begin
 end $$;
 
 -- Store with its owner. tax_rate 0.0825 and prices including tax by default.
+-- p_subscribed: an 'active' subscription (full access, phase 9). Pass false to
+-- get a store without one ('setup' access: it can't sell).
 create function tests.create_store(
   p_owner uuid, p_slug text, p_id uuid default gen_random_uuid(),
-  p_tax_rate numeric default 0.0825, p_prices_include_tax boolean default true
+  p_tax_rate numeric default 0.0825, p_prices_include_tax boolean default true,
+  p_subscribed boolean default true
 ) returns uuid language plpgsql as $$
 begin
   insert into public.stores (id, name, slug, currency, tax_rate, prices_include_tax, created_by)
   values (p_id, initcap(replace(p_slug, '-', ' ')), p_slug, 'USD', p_tax_rate, p_prices_include_tax, p_owner);
   insert into public.store_members (store_id, user_id, role) values (p_id, p_owner, 'owner');
+  if p_subscribed then
+    insert into public.subscriptions (store_id, status) values (p_id, 'active');
+  end if;
   return p_id;
+end $$;
+
+-- Sets a store's subscription status as the server (webhook) would.
+create function tests.set_subscription(p_store uuid, p_status public.subscription_status)
+returns void language plpgsql as $$
+begin
+  if p_status is null then
+    delete from public.subscriptions where store_id = p_store;
+  else
+    insert into public.subscriptions (store_id, status) values (p_store, p_status)
+    on conflict (store_id) do update set status = excluded.status;
+  end if;
 end $$;
 
 create function tests.add_member(p_store uuid, p_user uuid, p_role public.store_role)

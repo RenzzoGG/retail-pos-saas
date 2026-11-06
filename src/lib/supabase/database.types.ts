@@ -379,28 +379,28 @@ isOneToOne: false
                   ]
                 },"stripe_events": {
                   Row: {
-                    "id": string,"processed_at": string | null,"received_at": string,"type": string
+                    "id": string,"processed_at": string | null,"received_at": string,"result": string | null,"type": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "id": string,"processed_at"?: string | null,"received_at"?: string,"type": string
+                    "id": string,"processed_at"?: string | null,"received_at"?: string,"result"?: string | null,"type": string
                   }
                   Update: {
-                    "id"?: string,"processed_at"?: string | null,"received_at"?: string,"type"?: string
+                    "id"?: string,"processed_at"?: string | null,"received_at"?: string,"result"?: string | null,"type"?: string
                   }
                   Relationships: [
                     
                   ]
                 },"subscriptions": {
                   Row: {
-                    "cancel_at_period_end": boolean,"created_at": string,"current_period_end": string | null,"price_id": string | null,"status": Database["public"]['Enums']["subscription_status"],"store_id": string,"stripe_customer_id": string,"stripe_subscription_id": string | null,"trial_end": string | null,"updated_at": string
+                    "cancel_at_period_end": boolean,"created_at": string,"current_period_end": string | null,"last_event_at": string | null,"price_id": string | null,"status": Database["public"]['Enums']["subscription_status"],"store_id": string,"stripe_customer_id": string | null,"stripe_subscription_id": string | null,"trial_end": string | null,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "cancel_at_period_end"?: boolean,"created_at"?: string,"current_period_end"?: string | null,"price_id"?: string | null,"status": Database["public"]['Enums']["subscription_status"],"store_id": string,"stripe_customer_id": string,"stripe_subscription_id"?: string | null,"trial_end"?: string | null,"updated_at"?: string
+                    "cancel_at_period_end"?: boolean,"created_at"?: string,"current_period_end"?: string | null,"last_event_at"?: string | null,"price_id"?: string | null,"status": Database["public"]['Enums']["subscription_status"],"store_id": string,"stripe_customer_id"?: string | null,"stripe_subscription_id"?: string | null,"trial_end"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "cancel_at_period_end"?: boolean,"created_at"?: string,"current_period_end"?: string | null,"price_id"?: string | null,"status"?: Database["public"]['Enums']["subscription_status"],"store_id"?: string,"stripe_customer_id"?: string,"stripe_subscription_id"?: string | null,"trial_end"?: string | null,"updated_at"?: string
+                    "cancel_at_period_end"?: boolean,"created_at"?: string,"current_period_end"?: string | null,"last_event_at"?: string | null,"price_id"?: string | null,"status"?: Database["public"]['Enums']["subscription_status"],"store_id"?: string,"stripe_customer_id"?: string | null,"stripe_subscription_id"?: string | null,"trial_end"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -419,6 +419,9 @@ isOneToOne: true
           Functions: {
             "accept_invitation":
 { Args: { "p_token": string }; Returns: string
+                           },
+"apply_stripe_event":
+{ Args: { "p_change": Json,"p_created": string,"p_event_id": string,"p_type": string }; Returns: string
                            },
 "create_return":
 { Args: { "p_items": Json,"p_reason"?: string,"p_refund_method"?: Database["public"]['Enums']["payment_method"],"p_sale_id": string }; Returns: string

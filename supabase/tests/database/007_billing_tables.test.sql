@@ -6,8 +6,8 @@ select plan(9);
 
 select tests.create_user('owner1@bill.test', '15000000-0000-4000-8000-000000000001');
 select tests.create_user('owner2@bill.test', '15000000-0000-4000-8000-000000000002');
-select tests.create_store('15000000-0000-4000-8000-000000000001', 'bill-one', '25000000-0000-4000-8000-000000000001');
-select tests.create_store('15000000-0000-4000-8000-000000000002', 'bill-two', '25000000-0000-4000-8000-000000000002');
+select tests.create_store('15000000-0000-4000-8000-000000000001', 'bill-one', '25000000-0000-4000-8000-000000000001', p_subscribed => false);
+select tests.create_store('15000000-0000-4000-8000-000000000002', 'bill-two', '25000000-0000-4000-8000-000000000002', p_subscribed => false);
 
 -- The webhook (service_role) can write both tables.
 select tests.act_as_service_role();

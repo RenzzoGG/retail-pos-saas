@@ -63,6 +63,15 @@ values
   ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 'cashier'),
   ('b0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000004', 'owner');
 
+-- Subscriptions (no Stripe involved; written here as the seed, like the webhook would):
+--   Demo store: active, complimentary plan (no Stripe customer) — full access.
+--   Other Shop: trialing, 10 days left.
+-- To try real Stripe Checkout, sign up a new owner and store (see docs/STRIPE.md).
+insert into public.subscriptions (store_id, stripe_customer_id, status, trial_end, current_period_end)
+values
+  ('b0000000-0000-4000-8000-000000000001', null, 'active', null, now() + interval '30 days'),
+  ('b0000000-0000-4000-8000-000000000002', null, 'trialing', now() + interval '10 days', now() + interval '10 days');
+
 -- -----------------------------------------------------------------------------
 -- Products (stock starts at 0; it is loaded below with a stock entry).
 -- Demo store prices are in USD and include tax.

@@ -33,6 +33,15 @@ Documentación clave:
    contraseñas, tokens). Si se necesita un valor, pedirlo al usuario o usar variables de ejemplo en `.env.example`.
 3. **Sin suplantación**: nunca usar secretos para generar tokens ni para hacerse pasar por un usuario.
    Para probar, usar datos y usuarios de prueba creados por los propios tests o seeds.
+   - **Única excepción (Fase 9, pruebas del webhook de Stripe):** las pruebas de integración del webhook
+     pueden usar la clave secreta del **Supabase local** con estos límites:
+     - solo la que da `supabase status -o env` del stack local, nunca una de Supabase Cloud ni de
+       producción (la prueba aborta si la URL no es `127.0.0.1`/`localhost`);
+     - solo en las pruebas del webhook;
+     - se lee en tiempo de ejecución, sin imprimirla, guardarla, versionarla ni mostrarla en reportes;
+     - las pruebas de permisos de usuario nunca la usan.
+   - Las claves de Stripe las pone el usuario en `.env.local` y nunca se leen. Los eventos de las pruebas
+     se firman con un secreto inventado.
 4. **Trabajo por fases**: al final de cada fase entregar un **REPORTE** con:
    - qué se hizo,
    - archivos creados o modificados,

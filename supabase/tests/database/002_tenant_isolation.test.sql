@@ -33,7 +33,8 @@ insert into public.invitations (store_id, email, role, token_hash, expires_at) v
   ('20000000-0000-4000-8000-00000000000b', 'new-b@iso.test', 'cashier', 'hash-b', now() + interval '7 days');
 insert into public.subscriptions (store_id, stripe_customer_id, status) values
   ('20000000-0000-4000-8000-00000000000a', 'cus_a', 'trialing'),
-  ('20000000-0000-4000-8000-00000000000b', 'cus_b', 'trialing');
+  ('20000000-0000-4000-8000-00000000000b', 'cus_b', 'trialing')
+on conflict (store_id) do update set stripe_customer_id = excluded.stripe_customer_id, status = excluded.status;
 
 -- ------------------------------------------------- READ: user A sees no B rows
 select tests.authenticate_as('10000000-0000-4000-8000-00000000000a');

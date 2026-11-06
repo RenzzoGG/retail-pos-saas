@@ -120,6 +120,20 @@
       "when": 1793933147747,
       "tag": "20261106024547_rls_read_performance",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793937419707,
+      "tag": "20261106035659_billing_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793937420965,
+      "tag": "20261106035700_billing",
+      "breakpoints": true
     }
   ]
 }
