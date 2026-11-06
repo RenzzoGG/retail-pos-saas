@@ -112,13 +112,17 @@ original vía `create_return`, CRUD de clientes con historial de compras.
 - [x] Solo owner/admin pueden registrar devoluciones; el cajero es rechazado en servidor y BD (pruebas).
 - [x] La ficha del cliente muestra sus compras y devoluciones; la utilidad descuenta las devoluciones.
 
-## Fase 8 — Dashboard y reportes
+## Fase 8 — Dashboard y reportes ✅ terminada
 **Objetivos:** ventas diarias y mensuales, utilidad (solo owner/admin), productos más vendidos,
 filtros por fecha, exportación de ventas a Excel.
 **Terminado cuando:**
-- [ ] Gráficas y KPIs coinciden con los datos del seed (pruebas de las consultas).
-- [ ] El cajero no ve utilidades (prueba en servidor y BD).
-- [ ] Exportación `.xlsx` con el rango filtrado.
+- [x] Gráficas y KPIs coinciden con los datos del seed (pruebas de las consultas): resumen, serie y métodos
+      = sumas de las filas crudas (integración); valores exactos con un cambio de horario (pgTAP).
+- [x] El cajero no ve utilidades (prueba en servidor y BD): `forbidden` en todas las funciones con costos,
+      RLS oculta los costos incluso en los bloques internos, y su dashboard no muestra utilidad.
+- [x] Exportación `.xlsx` con el rango filtrado (Summary, Sales, Items), sin fórmulas y con el texto
+      protegido; 404 para el cajero.
+- [x] Pendiente de la fase 7: nota de pie de ticket configurable en Settings (sin promesas de plazo).
 
 ## Fase 9 — Stripe
 **Objetivos:** un solo plan mensual de **19 USD** en modo prueba con **14 días de prueba gratis**,

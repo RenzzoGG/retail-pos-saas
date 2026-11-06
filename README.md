@@ -49,7 +49,8 @@ Supabase Studio (browse tables, policies and data): http://localhost:54323
 | `owner@other.stocktill.test` | owner | Other Shop (EUR, 21 % tax added) |
 
 Password for all of them: `stocktill-demo`. The demo store uses the `America/New_York` time zone. The demo store has 20 electronics accessories,
-3 customers and 2 sales.
+3 customers and 60 days of sales history (discounts, split payments, returns and a few write-offs), so
+the dashboard and reports have data right away.
 
 Stop everything with `npm run docker:down` and `npm run supabase:stop`.
 
@@ -81,6 +82,17 @@ After a sale, **Print receipt** / **Download PDF** give an 80 mm thermal ticket 
 detail, to reprint). Owners and admins register **returns** from the sale detail: units per line,
 “Return to stock” (uncheck it for damaged items), reason and refund method; each return has its own
 PDF receipt. **Customers** (`/app/customers`) can be created from the POS with “+ New customer”.
+The receipt note (footer) is set per store in **Settings**.
+
+### Dashboard and reports
+
+- **Dashboard** (`/app`): owners and admins see sales today / this week / this month compared with the
+  same point of the previous period, gross profit, average ticket, refunds, write-offs, a 30-day chart,
+  best sellers and payment methods. Cashiers see today's store sales and their own, without profit.
+- **Reports** (`/app/reports`, owner/admin): quick ranges or a custom range in the store's time zone;
+  sales by day or month, gross profit (net of returns, write-offs as a loss), best sellers by units or
+  revenue, and sales by category, payment method and cashier. **Export to Excel** downloads the range as
+  `.xlsx` (Summary, Sales and Items sheets).
 
 ### Sample import files
 

@@ -241,6 +241,9 @@ erDiagram
 
 ### Políticas por tabla (todas `to authenticated`)
 "miembro" = `app.is_store_member(store_id)`; "manager" = owner o admin.
+Desde la fase 8, las políticas **SELECT** expresan lo mismo como
+`store_id in (select app.member_store_ids())` / `app.managed_store_ids()`, que se evalúa una vez por
+consulta en lugar de por fila (20 veces más rápido en reportes; ver 4f).
 
 | Tabla | SELECT | INSERT | UPDATE | DELETE | Por qué |
 |---|---|---|---|---|---|
@@ -587,6 +590,128 @@ al build standalone con `outputFileTracingIncludes`, porque pdfkit las lee con `
   y `create_sale` los rechaza.
 - POS: "+ New customer" abre un `<dialog>` rápido (nombre, teléfono, correo) que crea y selecciona al
   cliente sin perder la venta; mientras está abierto, los atajos globales se desactivan.
+
+## 4f. Dashboard, reportes y exportación a Excel (implementado en la Fase 8)
+
+**Rutas:**
+- `/app`: dashboard según el rol.
+- `/app/reports`: solo owner/admin; cualquier otro rol recibe el 404 suave de `requireRole`.
+- `/app/reports/export`: solo owner/admin; cualquier otro rol recibe un 404 real.
+
+### Los cálculos viven en la base de datos
+Migración `*_reports.sql`.
+
+**Funciones (todas `SECURITY INVOKER`, `search_path = ''`, sin EXECUTE para `anon`):**
+- Bloques internos en el schema `app`, que la API no expone:
+  - `app.sale_facts`: una fila por venta, con su costo;
+  - `app.return_facts`: reembolso, su parte de impuesto, costo repuesto y merma;
+  - `app.product_facts`: unidades e ingresos por producto.
+- Funciones públicas: `report_summary`, `report_timeseries` (día o mes, rellena huecos), `report_products`,
+  `report_categories`, `report_payment_methods`, `report_cashiers`, `report_sales_export`,
+  `report_sale_lines_export` y `dashboard_today`.
+
+**Por qué INVOKER:** la función corre con los permisos de quien llama, así que **RLS se aplica a cada tabla**
+que lee. Otra tienda es invisible sin filtros manuales que puedan olvidarse. Una función DEFINER se saltaría
+RLS.
+
+**La utilidad tiene dos capas de protección:**
+1. Toda función con costos empieza con `app.is_store_manager()` y lanza `forbidden`. Si un cajero la llama
+   directamente por PostgREST, recibe un **error**, nunca un número.
+2. Aunque faltara ese chequeo, RLS le oculta `sale_item_costs` (el resultado sería erróneo, pero no se
+   filtraría ningún costo). pgTAP prueba ambas capas.
+
+El servidor vuelve a comprobar el rol antes de llamar (`src/features/reports/service.ts`), y
+`dashboard_today` no tiene ninguna columna de costo.
+
+**Periodos:**
+- `[from, to)` en UTC; los calcula el servidor desde fechas locales de la tienda (`ranges.ts`).
+- La agrupación por día o mes usa `created_at at time zone stores.timezone`, así que los días de 23 y 25
+  horas salen bien (probado).
+- **Las devoluciones cuentan en la fecha de la devolución**: los periodos cerrados no cambian. Sobre todo el
+  historial, el total coincide con la utilidad por venta de la fase 7.
+
+**Fórmulas:**
+- **Utilidad bruta** = Σ(total − impuesto) − costo vendido − Σ(reembolso − su parte de impuesto) + costo de
+  lo repuesto. La merma no se suma de vuelta: sigue siendo pérdida, y se muestra aparte.
+- **Ventas netas** = ventas brutas − reembolsos.
+- **Por método de pago** = cobrado − reembolsado con ese método. Su suma es igual a las ventas netas.
+
+**Comparaciones del dashboard (`periodWindow`):** comparan el mismo tiempo transcurrido, según el reloj
+local. Por ejemplo, 1–5 nov 15:00 contra 1–5 oct 15:00, y hoy contra ayer a la misma hora, aunque ayer
+tuviera 23 horas. Si el mes anterior es más corto, se usa completo. La semana empieza el lunes.
+
+### Rendimiento: RLS que se evalúa una vez por consulta
+Medido con 50 000 ventas sintéticas y 100 000 renglones, en una transacción descartada:
+
+| Consulta (como owner, con RLS) | Antes | Después |
+| --- | --- | --- |
+| `report_summary`, 30 días | 1,08 s | 46 ms |
+| `report_summary`, 365 días | 13,7 s | 0,52 s |
+| `report_timeseries`, 365 días por mes | 13,3 s | 0,52 s |
+| `report_products`, 365 días | 1,9 s | 0,25 s |
+| `report_sales_export`, 30 días | 1,2 s | 0,13 s |
+| `dashboard_today` | 2,5 ms | 1,2 ms |
+
+**La causa:** las políticas SELECT llamaban `app.is_store_member(store_id)` **por fila**. Esas funciones
+son DEFINER, porque tienen que leer `store_members`, y Postgres no puede integrarlas en la consulta. La misma
+consulta sin RLS tardaba 0,6 s.
+
+**La solución** (migración `*_rls_read_performance.sql`): `store_id in (select app.member_store_ids())`
+(o `managed_store_ids()` para costos, entradas, movimientos e historial).
+- La subconsulta no depende de la fila, así que Postgres la ejecuta **una vez** y cada fila solo se compara
+  contra una tabla hash.
+- El significado es el mismo y pasan las 310 pruebas de pgTAP.
+- Las políticas de escritura no cambian, porque tocan una fila a la vez.
+
+**Índices:**
+- Ya existían `(store_id, created_at)` en ventas, devoluciones y pagos, y `sale_items(sale_id)`,
+  `return_items(return_id)` y la PK de `sale_item_costs`.
+- Se añadió `sales(store_id, cashier_id, created_at)` para "mis ventas de hoy" y el reporte por cajero.
+
+### Gráficas: SVG propio, sin librería
+Son pocas y simples (columnas por día o mes y barras horizontales), y se renderizan en el servidor.
+- **Sin librería:** 0 KB de JS en el cliente. Recharts o Chart.js añadirían más de 100 KB y obligarían a usar
+  componentes de cliente.
+- **La geometría es pura y está probada** (`chart-data.ts`): escala "bonita", columnas de 24 px como máximo
+  con la punta redondeada y la base recta, 2 px entre barras, y etiquetas espaciadas.
+- **El texto es HTML** (ejes y etiquetas), así que no se encoge en el móvil. El SVG solo dibuja barras y
+  líneas de guía.
+- **Accesibilidad:** cada gráfica es un `<figure>` con `role="img"` y un nombre que resume los datos.
+  Incluye una tabla equivalente ("Show data table") y un tooltip por barra (`<title>`, con un área de clic
+  mayor que la barra). En las tarjetas, la variación se indica con flecha y texto, nunca solo con color.
+- **Color:** una sola serie, `--viz-series-1`. Se validó con los chequeos de paleta (contraste ≥ 3:1)
+  contra la tarjeta clara y la oscura.
+
+### Exportación a Excel
+`src/features/reports/export.ts` usa SheetJS vendorizado y genera tres hojas:
+- **Summary:** totales del rango y notas.
+- **Sales:** una fila por venta, con lo reembolsado a la fecha, el neto, los métodos de pago, el costo y la
+  utilidad tras devoluciones.
+- **Items:** renglones con unidades devueltas y mermadas, y el costo unitario.
+
+El archivo es solo para managers, por eso incluye costos.
+
+**Detalles:**
+- Las fechas son celdas de fecha con la hora local de la tienda.
+- Los números son celdas numéricas.
+- **El texto nunca es fórmula**: siempre es una celda de tipo `s`. Además, el texto que empieza por
+  `= + - @` (o tabulador o retorno de carro) lleva un apóstrofo delante. Es el mismo helper que usa el CSV de
+  la fase 5 (`src/lib/spreadsheet-safe.ts`).
+- Se lee de 1000 en 1000 filas (`max_rows` de PostgREST), con un tope de 50 000 ventas por archivo.
+
+### Datos de demo
+El seed genera 60 días de historia de forma determinista (`setseed`):
+- **Ventas:** de 3 a 9 por día, con más los fines de semana, en horario de apertura. Las hacen los tres
+  usuarios demo, con clientes, descuentos dentro del límite del cajero y pagos en efectivo, tarjeta,
+  transferencia o mixtos.
+- **Devoluciones:** 11, de las cuales 3 son merma.
+
+Todo pasa por `create_sale` y `create_return` en orden cronológico; después el seed mueve los `created_at`
+al pasado. Para hacerlo desactiva un momento los triggers de esas tablas: corre en local y es dueño de las
+tablas.
+
+El stock de apertura se calcula para que el **stock de hoy sea el mismo de antes**: los productos con stock
+bajo siguen bajos y las pruebas E2E no cambian.
 
 ## 5. Estructura de carpetas (propuesta)
 
