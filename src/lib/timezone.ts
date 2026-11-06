@@ -36,17 +36,38 @@ function offsetMs(instant: Date, timeZone: string): number {
 }
 
 /**
+ * The UTC instant of the local wall-clock time `date` + `msOfDay` in `timeZone`.
+ * E.g. 2026-11-05 + 15:00 in America/New_York (UTC-5) -> 2026-11-05T20:00:00Z.
+ */
+export function zonedDateTimeUtc(date: string, msOfDay: number, timeZone: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) throw new RangeError(`Invalid date: ${date}`);
+  const localAsUtc = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) + msOfDay;
+  // Two passes handle days where the offset changes (DST transitions).
+  let guess = localAsUtc - offsetMs(new Date(localAsUtc), timeZone);
+  guess = localAsUtc - offsetMs(new Date(guess), timeZone);
+  return new Date(guess);
+}
+
+/**
  * The UTC instant when the local day `date` ("YYYY-MM-DD") starts in `timeZone`.
  * E.g. 2026-11-05 in America/New_York (UTC-5) -> 2026-11-05T05:00:00Z.
  */
 export function zonedDayStartUtc(date: string, timeZone: string): Date {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  if (!match) throw new RangeError(`Invalid date: ${date}`);
-  const localMidnightAsUtc = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  // Two passes handle days where the offset changes (DST transitions).
-  let guess = localMidnightAsUtc - offsetMs(new Date(localMidnightAsUtc), timeZone);
-  guess = localMidnightAsUtc - offsetMs(new Date(guess), timeZone);
-  return new Date(guess);
+  return zonedDateTimeUtc(date, 0, timeZone);
+}
+
+/** Milliseconds since local midnight of `now` in `timeZone` (wall clock). */
+export function msOfDayInZone(timeZone: string, now = new Date()): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(now);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  return ((get("hour") * 60 + get("minute")) * 60 + get("second")) * 1000 + now.getUTCMilliseconds();
 }
 
 /** Start of the next local day: an exclusive upper bound for "until <date>" filters. */

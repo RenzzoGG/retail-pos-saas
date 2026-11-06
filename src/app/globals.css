@@ -12,10 +12,19 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Charts (single series): validated with the dataviz palette checks against
+   white (light) and slate-900 (dark) card surfaces. */
+:root {
+  --viz-series-1: #2a78d6;
+  --viz-grid: #e2e8f0;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --viz-series-1: #3987e5;
+    --viz-grid: #334155;
   }
 }
 

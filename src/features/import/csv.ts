@@ -1,3 +1,4 @@
+import { safeText } from "@/lib/spreadsheet-safe";
 import { COLUMN_KEYS, HEADER_LABELS } from "./columns";
 import type { ValidatedRow } from "./validate";
 
@@ -7,8 +8,7 @@ import type { ValidatedRow } from "./validate";
  * ("CSV/formula injection"), and the report contains text typed by users.
  */
 export function csvCell(value: string): string {
-  let text = value;
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  const text = safeText(value);
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
