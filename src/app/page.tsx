@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { buttonClasses } from "@/components/ui/button-styles";
+import { getDemoConfig } from "@/features/demo/config";
 import { ImportArt, ReceiptArt, ReportsArt, ScanArt, StockArt } from "@/features/landing/components/feature-art";
 import { HeroDemo } from "@/features/landing/components/hero-demo";
 import { ScrollReveals } from "@/features/landing/components/scroll-reveals";
@@ -164,9 +165,16 @@ export default function Home() {
                 <Link href="/signup" className={buttonClasses("primary", "px-6 py-3 text-base")}>
                   Start your 14-day free trial
                 </Link>
-                <Link href="/login" className={buttonClasses("secondary", "px-6 py-3 text-base")}>
-                  Sign in
-                </Link>
+                {getDemoConfig() ? (
+                  // Public demo accounts (phase 11): one click on the login page.
+                  <Link href="/login#demo" className={buttonClasses("secondary", "px-6 py-3 text-base")}>
+                    Try the live demo
+                  </Link>
+                ) : (
+                  <Link href="/login" className={buttonClasses("secondary", "px-6 py-3 text-base")}>
+                    Sign in
+                  </Link>
+                )}
               </div>
               <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">Then 19 USD per month · Stripe test mode in this demo · cancel anytime</p>
             </div>

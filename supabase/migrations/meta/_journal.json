@@ -134,6 +134,13 @@
       "when": 1793937420965,
       "tag": "20261106035700_billing",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793990413611,
+      "tag": "20261106184013_demo_schema",
+      "breakpoints": true
     }
   ]
 }

@@ -5,6 +5,7 @@ import { type FormState, formValues, zodFieldErrors } from "@/lib/forms/state";
 import { safeNextPath } from "@/lib/safe-redirect";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
+import { isDemoEmail } from "@/features/demo/config";
 import { forgotPasswordSchema, resetPasswordSchema, signInSchema, signUpSchema } from "./schemas";
 
 export async function signUp(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -66,10 +67,13 @@ export async function requestPasswordReset(_prev: FormState, formData: FormData)
   if (!parsed.success) {
     return { status: "error", fieldErrors: zodFieldErrors(parsed.error), values };
   }
-  const supabase = await createClient();
-  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${getSiteUrl()}/reset-password`,
-  });
+  // Demo addresses (.test) can't receive email: never send to them.
+  if (!isDemoEmail(parsed.data.email)) {
+    const supabase = await createClient();
+    await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+      redirectTo: `${getSiteUrl()}/reset-password`,
+    });
+  }
   // Same answer whether or not the account exists.
   return {
     status: "success",
@@ -84,6 +88,12 @@ export async function updatePassword(_prev: FormState, formData: FormData): Prom
     return { status: "error", fieldErrors: zodFieldErrors(parsed.error) };
   }
   const supabase = await createClient();
+  // The published demo accounts keep their published password (the nightly
+  // reset also restores it if someone changes it through the Auth API).
+  const { data: claims } = await supabase.auth.getClaims();
+  if (isDemoEmail(typeof claims?.claims?.email === "string" ? claims.claims.email : null)) {
+    return { status: "error", message: "Demo accounts can't change their password." };
+  }
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) {
     return {

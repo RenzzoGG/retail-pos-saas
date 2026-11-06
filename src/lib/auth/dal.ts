@@ -15,7 +15,8 @@ import { createClient } from "@/lib/supabase/server";
 export const ACTIVE_STORE_COOKIE = "stocktill_active_store";
 
 export type SessionUser = { id: string; email: string };
-export type Membership = { storeId: string; storeName: string; role: StoreRole };
+/** isDemo: the public demo store (phase 11), where team and settings are locked. */
+export type Membership = { storeId: string; storeName: string; role: StoreRole; isDemo: boolean };
 export type StoreContext = {
   user: SessionUser;
   store: Membership;
@@ -48,7 +49,7 @@ export const getMemberships = cache(async (): Promise<Membership[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("store_members")
-    .select("store_id, role, stores(name)")
+    .select("store_id, role, stores(name, is_demo)")
     .eq("user_id", user.id);
   if (error) throw new Error("Could not load your stores.");
   return (data ?? [])
@@ -57,6 +58,7 @@ export const getMemberships = cache(async (): Promise<Membership[]> => {
       storeId: row.store_id,
       storeName: row.stores?.name ?? "Store",
       role: row.role,
+      isDemo: row.stores?.is_demo ?? false,
     }))
     .sort((a, b) => a.storeName.localeCompare(b.storeName));
 });

@@ -17,6 +17,8 @@ const MESSAGES: Record<string, string> = {
   already_member: "You're already a member of this store.",
   store_needs_owner: "A store must always have at least one owner.",
   subscription_inactive: "This store's subscription doesn't allow that right now. The owner can check Billing.",
+  demo_locked: "That's locked in the public demo (team, invitations, store settings and new stores). Sign up to try it on your own store.",
+  demo_users_missing: "The demo isn't set up yet.",
 };
 
 export type DbErrorLike = { code?: string | null; message?: string | null } | null | undefined;

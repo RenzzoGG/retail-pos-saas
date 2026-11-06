@@ -859,6 +859,43 @@ consultas y validaciones de cada módulo, y escala mejor que carpetas gigantes d
 5. **Stripe:** endpoint de webhook `https://stocktill.renzzogg.com/api/stripe/webhook` en modo prueba.
 6. **CI:** el job `docker` construye la imagen, la arranca y exige `healthy` y usuario `node`.
 
+### 7b. Demo pública (implementado en la Fase 11)
+Los visitantes del portafolio entran con cuentas publicadas (owner, admin y cajero de *Stocktill Demo
+Electronics*) desde un panel "Try the live demo" en `/login` (`NEXT_PUBLIC_DEMO_ENABLED`). Pueden usar todo
+el POS.
+
+**Reinicio:** `public.reset_demo_store(p_password, p_lock)` (SECURITY DEFINER, solo `service_role`/`postgres`)
+borra la tienda demo y la reconstruye desde cero: catálogo (`app.demo_products`), clientes y 60 días de
+ventas y devoluciones generados de forma determinista (`setseed`) a través de `create_sale` y `create_return`.
+También restaura el email, la contraseña y los roles de los usuarios demo, por si alguien los cambió llamando
+directamente a la API de Auth. Tarda ~0,9 s, es idempotente y usa un *advisory lock* para no correr dos veces a la
+vez. En producción la llama **pg_cron** cada noche (03:00 UTC). El seed local llama a la misma función, así que
+los datos son idénticos (se comprobó con una huella de ventas, devoluciones, stock y bitácora).
+
+**Cómo se reconoce a los usuarios demo:** por `app_metadata.demo_role`, que solo se escribe con la Admin
+API (`scripts/demo-provision.mjs`) o con el seed. El usuario no puede cambiarlo, así que cambiar el email no
+"esconde" la cuenta.
+
+**Bloqueos (`stores.is_demo`, triggers `app.guard_demo`):** solo aplican a usuarios con sesión.
+| Bloqueado | Por qué |
+| --- | --- |
+| Invitaciones (desde la tienda demo o desde una cuenta demo) | Envían correo: evitaría usar el SMTP para spam |
+| Cambios de equipo (roles, altas, bajas) | Romperían la demo para el siguiente visitante |
+| Ajustes de la tienda (solo si cambian; `create_sale` sí puede subir `last_sale_number`) | Nombre o impuestos vandalizados |
+| Crear tiendas nuevas desde una cuenta demo | Escaparía del reinicio |
+| Cambiar el nombre del perfil | Se ve en tickets y reportes |
+
+En el servidor, además: no se envía *reset* de contraseña a direcciones `@demo.stocktill.test` (dominio
+reservado `.test`, que no recibe correo), y las cuentas demo no pueden cambiar su contraseña desde la app.
+Checkout ya estaba cerrado para la demo (plan de cortesía sin cliente de Stripe).
+
+**En local la tienda demo no se bloquea** (`p_lock => false`): es el fixture de las pruebas, que cambian su
+equipo y sus ajustes. Los bloqueos se prueban en `016_demo.test.sql`.
+
+**Riesgo aceptado:** entre dos reinicios, un visitante puede ensuciar los datos (productos o ventas) o cambiar
+la contraseña de una cuenta demo a través de la API de Auth. Lo arregla el siguiente reinicio, y el intervalo de
+pg_cron se puede acortar.
+
 ### Encabezados de seguridad
 `src/lib/security-headers.ts`, aplicados a todas las rutas desde `headers()` de `next.config.ts`:
 

@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { localSupabaseEnv } from "./scripts/local-supabase-env.mjs";
+import { DEMO_PASSWORD } from "./tests/fixtures/demo";
 
 /**
  * E2E tests in a real browser against a PRODUCTION build (`next build` +
@@ -41,6 +42,9 @@ export default defineConfig({
       // Production has no SMTP defaults: point invitations at local Mailpit.
       SMTP_HOST: "127.0.0.1",
       SMTP_PORT: "54325",
+      // Public demo panel on /login (phase 11), with the local seed password.
+      NEXT_PUBLIC_DEMO_ENABLED: "true",
+      NEXT_PUBLIC_DEMO_PASSWORD: DEMO_PASSWORD,
     },
   },
 });

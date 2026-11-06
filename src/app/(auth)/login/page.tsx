@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Alert } from "@/components/ui/alert";
 import { LoginForm } from "@/features/auth/components/login-form";
+import { DemoPanel } from "@/features/demo/components/demo-panel";
 import { safeNextPath } from "@/lib/safe-redirect";
 
 export const metadata: Metadata = { title: "Sign in · Stocktill" };
@@ -29,6 +30,10 @@ async function LoginContent({ searchParams }: { searchParams: SearchParams }) {
       {error === "invalid_link" ? (
         <Alert tone="error">That link is invalid or has expired. Sign in, or request a new link.</Alert>
       ) : null}
+      {error === "demo_unavailable" ? (
+        <Alert tone="error">The demo is being reset or isn&apos;t available right now. Try again in a minute.</Alert>
+      ) : null}
+      <DemoPanel />
       <LoginForm next={nextPath} />
       <p className="text-center text-sm text-slate-600 dark:text-slate-400">
         New to Stocktill?{" "}

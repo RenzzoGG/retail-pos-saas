@@ -365,14 +365,14 @@ isOneToOne: false
                   ]
                 },"stores": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"currency": string,"id": string,"last_sale_number": number,"max_cashier_discount_pct": number,"name": string,"prices_include_tax": boolean,"slug": string,"tax_rate": number,"ticket_footer": string | null,"timezone": string,"updated_at": string
+                    "created_at": string,"created_by": string | null,"currency": string,"id": string,"is_demo": boolean,"last_sale_number": number,"max_cashier_discount_pct": number,"name": string,"prices_include_tax": boolean,"slug": string,"tax_rate": number,"ticket_footer": string | null,"timezone": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"id"?: string,"last_sale_number"?: number,"max_cashier_discount_pct"?: number,"name": string,"prices_include_tax"?: boolean,"slug": string,"tax_rate"?: number,"ticket_footer"?: string | null,"timezone"?: string,"updated_at"?: string
+                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"id"?: string,"is_demo"?: boolean,"last_sale_number"?: number,"max_cashier_discount_pct"?: number,"name": string,"prices_include_tax"?: boolean,"slug": string,"tax_rate"?: number,"ticket_footer"?: string | null,"timezone"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"id"?: string,"last_sale_number"?: number,"max_cashier_discount_pct"?: number,"name"?: string,"prices_include_tax"?: boolean,"slug"?: string,"tax_rate"?: number,"ticket_footer"?: string | null,"timezone"?: string,"updated_at"?: string
+                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"id"?: string,"is_demo"?: boolean,"last_sale_number"?: number,"max_cashier_discount_pct"?: number,"name"?: string,"prices_include_tax"?: boolean,"slug"?: string,"tax_rate"?: number,"ticket_footer"?: string | null,"timezone"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -490,6 +490,9 @@ isOneToOne: true
 { Args: { "p_bucket"?: string,"p_from": string,"p_store_id": string,"p_to": string }; Returns: {
               "bucket": string,"gross_sales": number,"net_sales": number,"profit": number,"refunds": number,"sales_count": number
             }[]
+                           },
+"reset_demo_store":
+{ Args: { "p_lock"?: boolean,"p_password"?: string }; Returns: Json
                            }
           }
           Enums: {

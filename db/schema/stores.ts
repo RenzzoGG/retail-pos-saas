@@ -34,6 +34,11 @@ export const stores = pgTable(
     ticketFooter: text("ticket_footer"),
     /** Per-store sale counter; only changed by public.create_sale(). */
     lastSaleNumber: integer("last_sale_number").notNull().default(0),
+    /**
+     * Public portfolio demo store (phase 11): rebuilt by public.reset_demo_store();
+     * team, invitations and store settings are locked for its users. Not client-writable.
+     */
+    isDemo: boolean("is_demo").notNull().default(false),
     createdBy: uuid("created_by").references(() => authUsers.id, { onDelete: "set null" }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
