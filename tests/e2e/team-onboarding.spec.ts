@@ -47,6 +47,12 @@ test("owner onboards, invites a cashier who accepts, then promotes them", async 
   await ownerPage.getByLabel("Sales tax (%)").fill("8.25");
   await ownerPage.getByRole("button", { name: "Create store" }).click();
   await expect(ownerPage).toHaveURL(/\/app$/);
+  // A new store has no subscription yet: setup mode (can't sell until the trial starts).
+  await expect(ownerPage.getByTestId("subscription-banner")).toContainText("Setup mode");
+  await ownerPage.goto("/app/billing");
+  await expect(ownerPage.getByTestId("billing-status")).toHaveText(/No subscription/);
+  await ownerPage.goto("/app/pos");
+  await expect(ownerPage.getByTestId("pos-blocked")).toContainText("The register is closed.");
   await expect(ownerPage.getByTestId("current-role")).toHaveText("Your role: Owner");
   await expect(ownerPage.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Team" })).toBeVisible();
 

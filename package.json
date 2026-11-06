@@ -25,7 +25,8 @@
     "db:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts",
     "test:integration": "vitest run --config vitest.integration.config.mts",
     "test:e2e": "playwright test",
-    "dev:local": "node scripts/dev-local.mjs"
+    "dev:local": "node scripts/dev-local.mjs",
+    "test:stripe": "node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run -c vitest.stripe.config.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
