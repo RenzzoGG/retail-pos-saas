@@ -17,3 +17,6 @@ supabase/.branches
 
 # Documentation and screenshots are not needed to build the image.
 docs
+
+# Placeholder that keeps public/ in git; the Dockerfile creates the folder anyway.
+public/.gitkeep

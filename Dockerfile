@@ -34,7 +34,9 @@ ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL} \
     NEXT_PUBLIC_DEMO_PASSWORD=${NEXT_PUBLIC_DEMO_PASSWORD}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+# public/ may be absent in a fresh clone (git does not track empty folders and
+# public/.gitkeep is excluded by .dockerignore); the runner stage copies it.
+RUN mkdir -p public && npm run build
 
 # ── 3. runner: minimal runtime, unprivileged user ───────────────────────────
 FROM ${NODE_IMAGE} AS runner
