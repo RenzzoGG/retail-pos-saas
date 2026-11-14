@@ -23,6 +23,7 @@
     "test:db": "supabase test db",
     "db:lint": "supabase db lint --level warning --fail-on error",
     "db:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts",
+    "emails:build": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-emails.mjs",
     "test:integration": "vitest run --config vitest.integration.config.mts",
     "test:e2e": "playwright test",
     "dev:local": "node scripts/dev-local.mjs",

@@ -27,7 +27,8 @@ Orden recomendado. Cada paso deja algo que el siguiente necesita:
 7. [Demo pública: cuentas y reinicio nocturno](#7-demo-pública-cuentas-y-reinicio-nocturno)
 8. [Prueba de humo y checklist final](#8-prueba-de-humo-y-checklist-final)
 
-Al final está la [tabla con todas las variables de entorno](#variables-de-entorno-de-producción).
+Al final están la [tabla con todas las variables de entorno](#variables-de-entorno-de-producción) y
+[cómo cambiar los correos](#correos-con-la-marca-stocktill).
 
 ---
 
@@ -111,10 +112,15 @@ En el panel del proyecto:
    - **Confirm email:** activado. Sin confirmar no se puede iniciar sesión (igual que en local).
    - **Secure email change:** activado, para que el cambio de email se confirme en las dos direcciones.
    - **Minimum password length:** `8`, como en `supabase/config.toml`.
+   - **Email OTP Expiration:** `3600` segundos, como `otp_expiry` en `supabase/config.toml`. Los correos
+     dicen "This link expires in 1 hour"; si cambias uno, cambia el otro (ver
+     [Correos con la marca](#correos-con-la-marca-stocktill)).
 3. **Authentication → Emails → Templates.** Copia el HTML de las plantillas del repo. Usan `/auth/confirm`
    con `token_hash`, así que el enlace funciona aunque el correo se abra en otro navegador.
    - **Confirm signup**: asunto `Confirm your Stocktill account`, cuerpo de `supabase/templates/confirmation.html`.
    - **Reset password**: asunto `Reset your Stocktill password`, cuerpo de `supabase/templates/recovery.html`.
+   - Pega el archivo **completo** (desde `<!DOCTYPE html>`) en la pestaña *Source* y guarda. Revisa la
+     vista previa: debe verse la cabecera "Stocktill", el botón y el enlace en texto.
 4. **Authentication → Emails → SMTP Settings → Enable custom SMTP**
    - Host `smtp.resend.com`, puerto `465`, usuario `resend` y contraseña: tu API key de Resend.
    - Sender email `no-reply@renzzogg.com` y sender name `Stocktill`.
@@ -314,6 +320,60 @@ No se configuran en Railway:
 Solo en **tu** `.env.production.local` (paso 7, nunca en Railway ni en git): `SUPABASE_URL`,
 `SUPABASE_SECRET_KEY` y `DEMO_PASSWORD`, para `scripts/demo-provision.mjs`.
 
+## Correos con la marca Stocktill
+
+Los tres correos (confirmación de registro, reset de contraseña e invitación al equipo) comparten un
+diseño: cabecera "Stocktill" en texto, tarjeta blanca, botón índigo, enlace completo en texto y pie con el
+aviso de marca ficticia. Todo sale de **un solo archivo**:
+
+| Qué | Dónde |
+| --- | --- |
+| Colores, tipografía, ancho y textos del pie | `BRAND` en `src/lib/email/layout.ts` |
+| Estructura común (preheader, botón, enlace, pie) | `renderEmail()` en el mismo archivo |
+| Textos de confirmación y reset (asunto, título, párrafos, botón) | `SUPABASE_AUTH_EMAILS` en el mismo archivo |
+| Textos de la invitación (HTML y texto plano) | `buildInvitationEmail()` en `src/lib/email/templates.ts` |
+| HTML que usa Supabase | `supabase/templates/*.html`: **generado, no lo edites a mano** |
+
+### Cambiar un correo
+
+1. Edita `src/lib/email/layout.ts` (o `templates.ts` para la invitación).
+2. `npm run emails:build`: regenera `supabase/templates/confirmation.html` y `recovery.html`.
+   `npm test` falla si esos archivos no coinciden con la fuente, o si el asunto de `supabase/config.toml`
+   o `otp_expiry` no cuadran con los textos.
+3. En local, reinicia Supabase para que recargue las plantillas:
+   `npm run supabase:stop && npm run supabase:start`. Los correos llegan a Mailpit
+   (<http://localhost:54324>), que además tiene una pestaña **HTML Check** con la compatibilidad por
+   cliente de correo.
+4. Haz commit y pega las plantillas en producción (abajo). La invitación no necesita nada más: la app
+   la genera al enviarla.
+
+### Copiarlos al panel de Supabase
+
+Supabase Cloud no lee `supabase/templates/`: hay que pegarlas a mano cada vez que cambian.
+
+1. **Authentication → Emails → Templates → Confirm signup**
+   - **Subject:** `Confirm your Stocktill account`
+   - **Body** (pestaña *Source*): todo el contenido de `supabase/templates/confirmation.html`.
+2. **Reset password**
+   - **Subject:** `Reset your Stocktill password`
+   - **Body:** todo el contenido de `supabase/templates/recovery.html`.
+3. **Save changes** en cada una y envíate un correo de prueba (regístrate con otra dirección, o usa
+   *Forgot password*).
+
+Reglas que sigue el diseño (y que conviene respetar al editarlo):
+
+- **Sin comentarios HTML**: Supabase los elimina, así que no hay comentarios condicionales de Outlook
+  (`<!--[if mso]>`). El ancho es fluido con tope: `width="560"` como atributo y
+  `width:100%;max-width:560px` en CSS. En Outlook para Windows la tarjeta puede ocupar todo el panel de
+  lectura; sigue siendo legible.
+- Solo tablas con `role="presentation"` y estilos en línea: nada de `<style>`, flexbox ni grid.
+- Sin imágenes remotas (se bloquean por defecto y suben la nota de spam): la marca es texto.
+- El enlace de confirmación es
+  `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next={{ .RedirectTo }}`
+  (en el HTML, `&` va como `&amp;`). `next` puede llegar vacío o como URL absoluta del propio sitio: la
+  app acepta ambos y usa `/app` por defecto.
+- Contraste AA: un test comprueba las parejas de colores de `BRAND`.
+
 ## Problemas frecuentes
 
 | Síntoma | Causa probable | Solución |
@@ -322,7 +382,9 @@ Solo en **tu** `.env.production.local` (paso 7, nunca en Railway ni en git): `SU
 | Healthcheck nunca pasa | El dominio apunta a otro puerto | `PORT=3000` y *target port* 3000 |
 | `ERR_TOO_MANY_REDIRECTS` | SSL de Cloudflare en *Flexible* | Cámbialo a **Full** |
 | El enlace del correo lleva a `localhost` | Site URL de Supabase sin cambiar | Paso 3.1 |
-| "That link is invalid or has expired" | Redirect URL no permitida, o el enlace ya se usó | Paso 3.1; pide otro enlace |
+| Un enlace o redirección lleva a `https://0.0.0.0:3000/…` | `NEXT_PUBLIC_SITE_URL` vacío o de otro dominio al construir | Ponlo y **redespliega** (paso 5.6). La app nunca usa la dirección interna del contenedor |
+| "That link is invalid or has expired" | El enlace ya se usó en **otro** navegador, o caducó (1 hora) | Pide otro enlace. Si se usó en el mismo navegador, la app continúa sin error |
+| Tras confirmar, se llega a la landing en vez de la app | `https://stocktill.renzzogg.com/**` no está en Redirect URLs | Paso 3.1 (Supabase cambia el destino por el Site URL; la app lo trata como "sin destino" y va a `/app`) |
 | Webhook en 400 | `STRIPE_WEBHOOK_SECRET` es el de `stripe listen` | Usa el del endpoint de producción (paso 6.3) |
 | *Try as …* dice que la demo no está disponible | No se corrió `demo-provision.mjs` o la contraseña no coincide | Paso 7.3, con la misma contraseña que `NEXT_PUBLIC_DEMO_PASSWORD` |
 | Todo da error de conexión de repente | Proyecto de Supabase pausado por inactividad | Panel de Supabase → **Restore project** |

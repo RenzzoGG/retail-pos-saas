@@ -1,5 +1,33 @@
-<h2>Reset your Stocktill password</h2>
-<p>Someone asked to reset the password for this account. Click the link below to choose a new one:</p>
-<p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">Reset my password</a></p>
-<p>If you didn't ask for this, you can ignore this email; your password won't change.</p>
-<p style="color:#666;font-size:12px">Stocktill is a fictional brand used in a portfolio project.</p>
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Reset your Stocktill password</title>
+</head>
+<body style="margin:0;padding:0;width:100%;background-color:#f1f5f9;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#f1f5f9;">Use this link to choose a new Stocktill password. It expires in 1 hour.&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f1f5f9" style="width:100%;background-color:#f1f5f9;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;">
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:#4f39f6;">Stocktill</td></tr>
+<tr><td bgcolor="#ffffff" style="padding:28px 28px 24px 28px;background-color:#ffffff;border:1px solid #e2e8f0;border-top:4px solid #4f39f6;border-radius:8px;">
+<h1 style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:22px;line-height:30px;font-weight:700;color:#0f172b;">Reset your password</h1>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:24px;color:#314158;">We received a request to reset the password of the Stocktill account <strong>{{ .Email }}</strong>.</p>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:24px;color:#314158;">Choose a new password with the button below.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px 0;border-collapse:separate;"><tr><td align="center" bgcolor="#4f39f6" style="border-radius:6px;background-color:#4f39f6;"><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery&amp;next=/reset-password" target="_blank" style="display:inline-block;padding:12px 24px;border:1px solid #4f39f6;border-radius:6px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#ffffff;text-decoration:none;">Choose a new password</a></td></tr></table>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;line-height:21px;color:#314158;">This link expires in 1 hour and works once.</p>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#45556c;word-break:break-all;">If the button doesn't work, copy and paste this link into your browser:<br><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery&amp;next=/reset-password" target="_blank" style="color:#4f39f6;text-decoration:underline;word-break:break-all;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery&amp;next=/reset-password</a></p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:8px 0 16px 0;"><tr><td style="border-top:1px solid #e2e8f0;font-size:1px;line-height:1px;">&nbsp;</td></tr></table>
+<p style="margin:0 0 16px 0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#45556c;">You're receiving this email because a password reset was requested for this address on Stocktill.</p>
+<p style="margin:0;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:13px;line-height:20px;color:#45556c;">If you didn't ask for it, you can ignore this email: your password won't change.</p>
+</td></tr>
+<tr><td align="center" style="padding:20px 8px 0 8px;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:18px;color:#45556c;">Stocktill is a fictional brand used in a portfolio project.<br>This is an automated email. Replies to this address aren't read.</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

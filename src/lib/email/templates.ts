@@ -1,13 +1,5 @@
 import { ROLE_LABELS, type StoreRole } from "@/lib/permissions";
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
+import { BRAND, escapeHtml, renderEmail } from "./layout";
 
 export type InvitationEmailInput = {
   storeName: string;
@@ -19,24 +11,58 @@ export type InvitationEmailInput = {
 
 export type EmailContent = { subject: string; text: string; html: string };
 
-/** Plain-text + HTML invitation email. All user-provided values are escaped. */
+/** "November 20, 2026 at 3:04 PM UTC": the recipient's zone is unknown, so UTC and say it. */
+function formatExpiry(date: Date): string {
+  const formatted = new Intl.DateTimeFormat("en-US", {
+    dateStyle: "long",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(date);
+  return `${formatted} UTC`;
+}
+
+/**
+ * Team invitation: branded HTML (shared layout, src/lib/email/layout.ts) plus
+ * a plain-text version. Every user-provided value is escaped in the HTML.
+ */
 export function buildInvitationEmail(input: InvitationEmailInput): EmailContent {
   const role = ROLE_LABELS[input.role];
-  const expires = input.expiresAt.toUTCString();
+  const expires = formatExpiry(input.expiresAt);
   const subject = `You're invited to join ${input.storeName} on Stocktill`;
+
   const text = [
-    `${input.inviterName} invited you to join ${input.storeName} on Stocktill as ${role}.`,
+    `Join ${input.storeName} on Stocktill`,
     "",
-    `Accept the invitation: ${input.acceptUrl}`,
+    `${input.inviterName} invited you to join ${input.storeName} as ${role}.`,
+    "Accept the invitation to start working with your team in Stocktill:",
     "",
-    `This link expires on ${expires}. If you weren't expecting it, you can ignore this email.`,
+    input.acceptUrl,
     "",
-    "Stocktill is a fictional brand used in a portfolio project.",
+    `This invitation expires on ${expires}.`,
+    "",
+    `You're receiving this email because a member of ${input.storeName} invited this address to their store on Stocktill.`,
+    "If you weren't expecting it, you can ignore this email: you won't be added to the store.",
+    "",
+    "--",
+    BRAND.disclaimer,
+    BRAND.automated,
   ].join("\n");
-  const html = `<h2>Join ${escapeHtml(input.storeName)} on Stocktill</h2>
-<p>${escapeHtml(input.inviterName)} invited you to join <strong>${escapeHtml(input.storeName)}</strong> as <strong>${escapeHtml(role)}</strong>.</p>
-<p><a href="${escapeHtml(input.acceptUrl)}">Accept the invitation</a></p>
-<p>This link expires on ${escapeHtml(expires)}. If you weren't expecting it, you can ignore this email.</p>
-<p style="color:#666;font-size:12px">Stocktill is a fictional brand used in a portfolio project.</p>`;
+
+  const store = escapeHtml(input.storeName);
+  const inviter = escapeHtml(input.inviterName);
+  const html = renderEmail({
+    title: escapeHtml(subject),
+    preheader: `${inviter} invited you to join ${store} as ${escapeHtml(role)}.`,
+    heading: `Join ${store} on Stocktill`,
+    intro: [
+      `${inviter} invited you to join <strong>${store}</strong> as <strong>${escapeHtml(role)}</strong>.`,
+      "Accept the invitation to start working with your team in Stocktill. If you don't have an account yet, you can create one with this email address.",
+    ],
+    button: { label: "Accept the invitation", href: escapeHtml(input.acceptUrl) },
+    expiry: `This invitation expires on ${escapeHtml(expires)}.`,
+    reason: `You're receiving this email because a member of ${store} invited this address to their store on Stocktill.`,
+    ignore: "If you weren't expecting it, you can ignore this email: you won't be added to the store.",
+  });
+
   return { subject, text, html };
 }
