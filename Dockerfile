@@ -36,6 +36,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # public/ may be absent in a fresh clone (git does not track empty folders and
 # public/.gitkeep is excluded by .dockerignore); the runner stage copies it.
+# NEXT_PUBLIC_SITE_URL is the canonical origin of every redirect and email link
+# (src/lib/site-url.ts). Without it they would point at http://localhost:3000.
+RUN test -n "$NEXT_PUBLIC_SITE_URL" || { echo "Build argument NEXT_PUBLIC_SITE_URL is required (e.g. https://stocktill.example.com)." >&2; exit 1; }
 RUN mkdir -p public && npm run build
 
 # ── 3. runner: minimal runtime, unprivileged user ───────────────────────────

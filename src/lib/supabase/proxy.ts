@@ -5,6 +5,7 @@ import {
   getServerSupabaseUrl,
   getSupabasePublishableKey,
 } from "@/lib/env";
+import { absoluteUrl } from "@/lib/site-url";
 import type { Database } from "@/lib/supabase/database.types";
 
 /** Areas that need a signed-in user. */
@@ -53,11 +54,9 @@ export async function updateSession(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   const redirectTo = (path: string) => {
-    const url = request.nextUrl.clone();
-    const [pathOnly, query] = path.split("?");
-    url.pathname = pathOnly ?? "/";
-    url.search = query ? `?${query}` : "";
-    const redirect = NextResponse.redirect(url);
+    // Canonical origin, not request.nextUrl: behind Railway the server sees
+    // itself as https://0.0.0.0:3000 (see src/lib/site-url.ts).
+    const redirect = NextResponse.redirect(absoluteUrl(path));
     // Keep any refreshed session cookies on the redirect response.
     for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
     return redirect;

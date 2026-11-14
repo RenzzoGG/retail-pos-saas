@@ -1,7 +1,7 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { safeNextPath } from "@/lib/safe-redirect";
-import { getSiteUrl } from "@/lib/site-url";
+import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 const ALLOWED_TYPES: EmailOtpType[] = ["email", "signup", "recovery", "email_change"];
@@ -22,8 +22,9 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
     if (!error) {
-      return NextResponse.redirect(new URL(next, request.nextUrl.origin));
+      return NextResponse.redirect(absoluteUrl(next));
     }
   }
-  return NextResponse.redirect(new URL("/login?error=invalid_link", request.nextUrl.origin));
+  // Canonical origin, never request.nextUrl.origin (https://0.0.0.0:3000 on Railway).
+  return NextResponse.redirect(absoluteUrl("/login?error=invalid_link"));
 }
