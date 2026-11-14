@@ -285,7 +285,7 @@ export type CheckoutError = { code: string; message: string; productId?: string 
 const CHECKOUT_MESSAGES: Record<string, string> = {
   discount_limit_exceeded: "This discount is above the cashier limit. Lower it or ask an owner or admin to ring up the sale.",
   payments_mismatch: "Payments don't match the total. Prices may have changed: review the cart and payments.",
-  invalid_discount: "A discount is larger than the amount it applies to.",
+  invalid_discount: "The discount can't be larger than the subtotal (or a line discount larger than its line).",
   customer_not_found: "That customer no longer exists. Remove it from the sale.",
   invalid_quantity: "Quantities must be whole numbers of at least 1.",
   forbidden: "You don't have permission to sell in this store.",

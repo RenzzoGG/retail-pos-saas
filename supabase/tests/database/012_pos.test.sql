@@ -1,7 +1,7 @@
 -- Phase 6: cashier discount limit, split payments, stock error details.
 begin;
 \ir _helpers.psql
-select plan(14);
+select plan(19);
 
 select tests.create_user('owner@pos.test',   '1a000000-0000-4000-8000-000000000001');
 select tests.create_user('cashier@pos.test', '1a000000-0000-4000-8000-000000000002');
@@ -81,6 +81,34 @@ select throws_ok(
 select tests.reset_role();
 select is((select stock from public.products where id = '3a000000-0000-4000-8000-000000000001'), 14,
   'stock = 20 - 2 - 1 - 1 - 2 (failed sales changed nothing)');
+
+-- --------------------------------------- discount bounds (empty cart, = / > subtotal)
+-- Checked as the owner, so the cashier limit doesn't mask these errors.
+select tests.authenticate_as('1a000000-0000-4000-8000-000000000001');
+select throws_ok(
+  $$ select public.create_sale('2a000000-0000-4000-8000-000000000001',
+       '[]', '[]', gen_random_uuid(), null, 20.00) $$,
+  '22023', 'invalid_items', 'an empty cart cannot be sold, even with a sale discount');
+select throws_ok(
+  $$ select public.create_sale('2a000000-0000-4000-8000-000000000001',
+       '[{"product_id":"3a000000-0000-4000-8000-000000000001","quantity":1,"discount":50.01}]',
+       '[]', gen_random_uuid()) $$,
+  '22023', 'invalid_discount', 'a line discount cannot exceed the line (50.01 > 50.00)');
+select throws_ok(
+  $$ select public.create_sale('2a000000-0000-4000-8000-000000000001',
+       '[{"product_id":"3a000000-0000-4000-8000-000000000001","quantity":1,"discount":10.00}]',
+       '[]', gen_random_uuid(), null, 40.01) $$,
+  '22023', 'invalid_discount', 'the sale discount is checked against the subtotal AFTER line discounts (40.01 > 40.00)');
+create temporary table free_sale (id uuid);
+grant all on free_sale to authenticated;
+insert into free_sale select public.create_sale('2a000000-0000-4000-8000-000000000001',
+  '[{"product_id":"3a000000-0000-4000-8000-000000000001","quantity":1,"discount":10.00}]',
+  '[]', gen_random_uuid(), null, 40.00);
+select tests.reset_role();
+select is((select total from public.sales where id = (select id from free_sale)), 0.00::numeric,
+  'a sale discount equal to the subtotal is allowed: total 0, no payments');
+select is((select stock from public.products where id = '3a000000-0000-4000-8000-000000000001'), 13,
+  'the free sale still takes the unit out of stock (failed ones changed nothing)');
 
 select * from finish();
 rollback;

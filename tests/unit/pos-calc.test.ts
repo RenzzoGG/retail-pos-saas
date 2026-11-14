@@ -68,6 +68,63 @@ describe("cashier discount limit", () => {
   });
 });
 
+describe("discount bounds", () => {
+  const amount = (value: number) => ({ kind: "amount" as const, value });
+  const percent = (value: number) => ({ kind: "percent" as const, value });
+
+  it("ignores the sale discount with an empty cart (subtotal 0): no discount, no error, 0 %", () => {
+    const t = cartTotals([], amount(20), 0.0825, true);
+    expect(t).toMatchObject({ subtotalCents: 0, saleDiscountCents: 0, totalCents: 0, invalidSaleDiscount: false, saleDiscountDisabled: true, discountPct: 0 });
+    expect(exceedsDiscountLimit(t, 10)).toBe(false);
+    expect(cartTotals([], percent(50), 0, true).saleDiscountDisabled).toBe(true);
+  });
+
+  it("also ignores it when line discounts already take the subtotal to 0", () => {
+    const t = cartTotals([item({ discount: percent(100) })], amount(5), 0, true);
+    expect(t).toMatchObject({ grossCents: 1000, subtotalCents: 0, saleDiscountCents: 0, totalCents: 0, saleDiscountDisabled: true, invalidSaleDiscount: false });
+    expect(t.discountPct).toBe(100);
+  });
+
+  it("accepts a sale discount equal to the subtotal (amount and 100 %)", () => {
+    for (const d of [amount(10), percent(100)]) {
+      const t = cartTotals([item()], d, 0.0825, true);
+      expect(t).toMatchObject({ saleDiscountCents: 1000, taxCents: 0, totalCents: 0, invalidSaleDiscount: false });
+      expect(t.discountPct).toBe(100);
+    }
+  });
+
+  it("rejects a sale discount larger than the subtotal after line discounts, without applying it", () => {
+    // gross 20.00, line discount 2.00 -> subtotal 18.00
+    const lines = [item({ quantity: 2, discount: amount(2) })];
+    expect(cartTotals(lines, amount(18), 0, true).invalidSaleDiscount).toBe(false);
+    for (const d of [amount(18.01), percent(100.5)]) {
+      const t = cartTotals(lines, d, 0, true);
+      expect(t).toMatchObject({ invalidSaleDiscount: true, saleDiscountCents: 0, subtotalCents: 1800, totalCents: 1800 });
+    }
+  });
+
+  it("does not apply an invalid line discount either", () => {
+    const t = cartTotals([item({ discount: amount(10.01) })], null, 0, true);
+    expect(t.lines[0]).toMatchObject({ invalidDiscount: true, discountCents: 0, totalCents: 1000 });
+    expect(t).toMatchObject({ lineDiscountCents: 0, totalCents: 1000, discountPct: 0 });
+  });
+
+  it("computes the cashier % right for amounts and percents (always finite, 0–100)", () => {
+    const pct = cartTotals([item({ unitPrice: 50, quantity: 2 })], percent(10), 0, true);
+    expect(pct.discountPct).toBeCloseTo(10, 6);
+    expect(exceedsDiscountLimit(pct, 10)).toBe(false);
+    expect(exceedsDiscountLimit(pct, 9.99)).toBe(true);
+    const fixed = cartTotals([item({ unitPrice: 50, quantity: 2 })], amount(10.01), 0, true);
+    expect(fixed.discountPct).toBeCloseTo(10.01, 6);
+    expect(exceedsDiscountLimit(fixed, 10)).toBe(true);
+    // A 0-priced product: gross 0, so no division by zero and no false 0 % "over the limit".
+    const free = cartTotals([item({ unitPrice: 0 })], amount(1), 0, true);
+    expect(free).toMatchObject({ grossCents: 0, discountPct: 0, saleDiscountDisabled: true });
+    expect(exceedsDiscountLimit(free, 0)).toBe(false);
+    for (const t of [pct, fixed, free]) expect(Number.isFinite(t.discountPct)).toBe(true);
+  });
+});
+
 describe("payments", () => {
   it("accepts a split payment that covers the total and computes the change", () => {
     const s = paymentSummary(10000, [

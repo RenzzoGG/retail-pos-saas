@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 import { DEMO_PASSWORD } from "../fixtures/demo";
 import { DEMO } from "./auth";
 
@@ -12,14 +12,17 @@ const SKUS = ["CBL-USBC-1M", "CHG-20W-C", "CAS-IP15-CLR", "PWB-20K"];
 
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
-test("POS cart with 4 products has no horizontal scroll at 390 px", async ({ page }) => {
+async function openPosAsCashier(page: Page) {
   await page.goto("/login");
   await page.getByLabel("Email", { exact: true }).fill(DEMO.cashier);
   await page.getByLabel("Password").fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/app$/);
-
   await page.goto("/app/pos", { waitUntil: "networkidle" });
+}
+
+test("POS cart with 4 products has no horizontal scroll at 390 px", async ({ page }) => {
+  await openPosAsCashier(page);
   const scan = page.getByLabel(/Scan or search/);
   await expect(scan).toBeFocused();
   for (const code of CODES) {
@@ -59,4 +62,35 @@ test("POS cart with 4 products has no horizontal scroll at 390 px", async ({ pag
   // 2 x 9.99 + 2 x 19.99 + 15.99 + 49.99 - 1.00 = 124.94
   await expect(page.getByTestId("pos-total")).toHaveText("$124.94");
   await expect(page.getByRole("button", { name: "Remove Power Bank 20,000 mAh" })).toBeVisible();
+});
+
+test("sale discount: disabled with an empty cart, never larger than the subtotal", async ({ page }) => {
+  await openPosAsCashier(page);
+  const saleDiscount = page.getByLabel("Discount on the whole sale", { exact: true });
+  const charge = page.getByRole("button", { name: /^Charge/ });
+
+  // Empty cart: nothing to discount, nothing to charge, and no contradictory error.
+  await expect(saleDiscount).toBeDisabled();
+  await expect(page.getByText("Add products to the cart to give a discount.")).toBeVisible();
+  for (const button of await charge.all()) await expect(button).toBeDisabled();
+  await expect(page.getByTestId("pos-total")).toHaveText("$0.00");
+  await expect(page.getByRole("alert").filter({ hasText: /discount/i })).toHaveCount(0);
+
+  // One cable (9.99): a 20.00 discount is larger than the subtotal.
+  await page.getByLabel(/Scan or search/).fill("2000000000015");
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("cart-line-CBL-USBC-1M")).toBeVisible();
+  await expect(saleDiscount).toBeEnabled();
+  await saleDiscount.fill("20");
+  await expect(page.getByRole("alert").filter({ hasText: "The discount can't be larger than the subtotal." })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "your limit" })).toHaveCount(0);
+  await expect(page.getByTestId("pos-totals")).not.toContainText("Discounts");
+  await expect(page.getByTestId("pos-total")).toHaveText("$9.99");
+  for (const button of await charge.all()) await expect(button).toBeDisabled();
+
+  // Removing the last product empties the cart and drops the sale discount.
+  await page.getByRole("button", { name: "Remove USB-C to USB-C Cable 1 m" }).click();
+  await expect(saleDiscount).toBeDisabled();
+  await expect(saleDiscount).toHaveValue("");
+  await expect(page.getByRole("alert").filter({ hasText: /discount/i })).toHaveCount(0);
 });

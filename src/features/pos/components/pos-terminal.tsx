@@ -96,8 +96,10 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
   }, [items, saleDiscount, customer, idempotencyKey, payments, checkoutOpen, storeId]);
 
   const totals = useMemo(() => cartTotals(items, saleDiscount, taxRate, pricesIncludeTax), [items, saleDiscount, taxRate, pricesIncludeTax]);
-  const overLimit = discountLimitPct !== null && exceedsDiscountLimit(totals, discountLimitPct);
-  const invalidDiscount = totals.invalidSaleDiscount || totals.lines.some((l) => l.invalidDiscount);
+  const invalidLineDiscount = totals.lines.some((l) => l.invalidDiscount);
+  const invalidDiscount = totals.invalidSaleDiscount || invalidLineDiscount;
+  // An invalid discount isn't applied, so the limit only speaks about valid ones.
+  const overLimit = !invalidDiscount && discountLimitPct !== null && exceedsDiscountLimit(totals, discountLimitPct);
   const canCharge = items.length > 0 && !overLimit && !invalidDiscount;
 
   /** Any change to the cart invalidates the checkout key: it's a different sale now. */
@@ -179,7 +181,8 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
     // The key is created when checkout starts and kept until the cart changes:
     // double clicks, reloads and retries all reuse it, so one sale at most.
     setIdempotencyKey((key) => key ?? crypto.randomUUID());
-    setPayments((current) => current ?? [{ method: "cash", amount: (totals.totalCents / 100).toFixed(2), tendered: "" }]);
+    // A 100 % discount leaves nothing to pay: no payment line (create_sale accepts none for a 0 total).
+    setPayments((current) => current ?? (totals.totalCents > 0 ? [{ method: "cash", amount: (totals.totalCents / 100).toFixed(2), tendered: "" }] : []));
     setCheckoutOpen(true);
   }, [canCharge, done, totals.totalCents]);
 
@@ -432,7 +435,14 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
                           <Button
                             variant="ghost"
                             aria-label={`Remove ${item.name}`}
-                            onClick={() => changeCart(() => setItems((cur) => cur.filter((i) => i.productId !== item.productId)))}
+                            onClick={() =>
+                              changeCart(() => {
+                                const rest = items.filter((i) => i.productId !== item.productId);
+                                setItems(rest);
+                                // Empty cart: drop the sale discount too, so it can't come back on the next sale.
+                                if (rest.length === 0) setSaleDiscount(null);
+                              })
+                            }
                           >
                             <XMarkIcon size="sm" />
                           </Button>
@@ -511,10 +521,15 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
             value={saleDiscount}
             currency={currency}
             invalid={totals.invalidSaleDiscount}
+            disabled={totals.saleDiscountDisabled}
+            describedBy="sale-discount-help"
             onChange={(d) => changeCart(() => setSaleDiscount(d))}
             onDone={backToScan}
             wide
           />
+          <p id="sale-discount-help" className="text-xs text-slate-500 dark:text-slate-400">
+            {totals.saleDiscountDisabled ? "Add products to the cart to give a discount." : null}
+          </p>
         </div>
 
         <dl className="space-y-1 text-sm" data-testid="pos-totals">
@@ -546,6 +561,8 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
           </div>
         </dl>
 
+        {totals.invalidSaleDiscount ? <Alert tone="error">The discount can&apos;t be larger than the subtotal.</Alert> : null}
+        {invalidLineDiscount ? <Alert tone="error">A line discount can&apos;t be larger than that line&apos;s total.</Alert> : null}
         {overLimit ? (
           <Alert tone="error">
             Discounts are {totals.discountPct.toFixed(1)}% of this sale; your limit is {discountLimitPct}%. Lower them or ask an owner
@@ -612,6 +629,8 @@ function DiscountInput({
   currency,
   onDone,
   wide = false,
+  disabled = false,
+  describedBy,
 }: {
   id: string;
   label: string;
@@ -621,6 +640,8 @@ function DiscountInput({
   currency: string;
   onDone?: () => void;
   wide?: boolean;
+  disabled?: boolean;
+  describedBy?: string;
 }) {
   // The unit is remembered even while the field is empty, so choosing "%"
   // before typing the number works.
@@ -637,6 +658,8 @@ function DiscountInput({
         inputMode="decimal"
         value={value ? String(value.value) : ""}
         placeholder="0"
+        disabled={disabled}
+        aria-describedby={describedBy}
         aria-invalid={invalid || undefined}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
@@ -650,7 +673,7 @@ function DiscountInput({
           const n = Number(text);
           if (Number.isFinite(n) && n >= 0) onChange({ kind, value: n });
         }}
-        className={`${wide ? "flex-1" : "w-16 @xl:w-20"} rounded-md border border-slate-300 bg-white px-2 py-1 text-right tabular-nums focus-visible:ring-2 focus-visible:ring-indigo-500 aria-[invalid=true]:border-red-500 dark:border-slate-600 dark:bg-slate-900`}
+        className={`${wide ? "flex-1" : "w-16 @xl:w-20"} rounded-md border border-slate-300 bg-white px-2 py-1 text-right tabular-nums focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 aria-[invalid=true]:border-red-500 dark:border-slate-600 dark:bg-slate-900 dark:disabled:bg-slate-800`}
       />
       <label htmlFor={`${id}-kind`} className="sr-only">
         {label}: percent or amount
@@ -658,12 +681,13 @@ function DiscountInput({
       <select
         id={`${id}-kind`}
         value={kind}
+        disabled={disabled}
         onChange={(e) => {
           const next = e.target.value as Discount["kind"];
           setChosenKind(next);
           if (value) onChange({ kind: next, value: value.value });
         }}
-        className="rounded-md border border-slate-300 bg-white px-1 py-1 text-sm focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900"
+        className="rounded-md border border-slate-300 bg-white px-1 py-1 text-sm focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:disabled:bg-slate-800"
       >
         <option value="amount">{symbol}</option>
         <option value="percent">%</option>

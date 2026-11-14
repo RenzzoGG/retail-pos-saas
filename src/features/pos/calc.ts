@@ -35,9 +35,12 @@ export type CartTotals = {
   saleDiscountCents: number;
   taxCents: number;
   totalCents: number;
-  /** All discounts as a % of the gross amount (what the cashier limit checks). */
+  /** Applied discounts as a % of the gross amount (what the cashier limit checks); always 0–100. */
   discountPct: number;
+  /** The sale discount is larger than the subtotal (it is then not applied). */
   invalidSaleDiscount: boolean;
+  /** With a subtotal of 0 there is nothing to discount: the sale discount is ignored. */
+  saleDiscountDisabled: boolean;
   itemCount: number;
 };
 
@@ -62,15 +65,18 @@ export function cartTotals(
   taxRate: number,
   pricesIncludeTax: boolean,
 ): CartTotals {
+  // An invalid discount (larger than what it applies to) is flagged and NOT
+  // applied, so the totals never show a discount the database would reject.
   const lines = items.map((item): LineTotals => {
     const grossCents = toCents(item.unitPrice) * item.quantity;
-    const discount = discountCents(grossCents, item.discount);
-    const invalidDiscount = discount > grossCents || (item.discount?.kind === "percent" && item.discount.value > 100);
+    const requested = discountCents(grossCents, item.discount);
+    const invalidDiscount = requested > grossCents || (item.discount?.kind === "percent" && item.discount.value > 100);
+    const discount = invalidDiscount ? 0 : requested;
     return {
       productId: item.productId,
       grossCents,
       discountCents: discount,
-      totalCents: Math.max(0, grossCents - discount),
+      totalCents: grossCents - discount,
       overStock: item.quantity > item.stock,
       invalidDiscount,
     };
@@ -78,9 +84,13 @@ export function cartTotals(
   const grossCents = lines.reduce((s, l) => s + l.grossCents, 0);
   const subtotalCents = lines.reduce((s, l) => s + l.totalCents, 0);
   const lineDiscountCents = grossCents - subtotalCents;
-  const saleDiscount$ = discountCents(subtotalCents, saleDiscount);
-  const invalidSaleDiscount = saleDiscount$ > subtotalCents;
-  const taxableCents = Math.max(0, subtotalCents - saleDiscount$);
+  // Same rule as create_sale: the sale discount can't exceed the subtotal.
+  // With a subtotal of 0 (empty cart) it is ignored instead of flagged.
+  const saleDiscountDisabled = subtotalCents === 0;
+  const requestedSale = saleDiscountDisabled ? 0 : discountCents(subtotalCents, saleDiscount);
+  const invalidSaleDiscount = requestedSale > subtotalCents;
+  const saleDiscount$ = invalidSaleDiscount ? 0 : requestedSale;
+  const taxableCents = subtotalCents - saleDiscount$;
 
   // Same as create_sale: included -> extract the tax; added -> tax on top.
   const taxCents = pricesIncludeTax
@@ -98,13 +108,19 @@ export function cartTotals(
     totalCents,
     discountPct: grossCents > 0 ? ((lineDiscountCents + saleDiscount$) * 100) / grossCents : 0,
     invalidSaleDiscount,
+    saleDiscountDisabled,
     itemCount: items.reduce((s, i) => s + i.quantity, 0),
   };
 }
 
-/** True when a cashier's discounts exceed the store limit (same rule as the database). */
+/**
+ * True when a cashier's discounts exceed the store limit (same rule as the
+ * database). Integer comparison, no division: a gross of 0 can't divide by
+ * zero, and since invalid discounts aren't applied it means no discount at all.
+ */
 export function exceedsDiscountLimit(totals: CartTotals, limitPct: number): boolean {
-  return (totals.lineDiscountCents + totals.saleDiscountCents) * 100 > limitPct * totals.grossCents;
+  const discounts = totals.lineDiscountCents + totals.saleDiscountCents;
+  return discounts > 0 && discounts * 100 > limitPct * totals.grossCents;
 }
 
 export type PaymentMethod = "cash" | "card" | "transfer";
