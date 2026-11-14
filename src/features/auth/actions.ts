@@ -14,7 +14,8 @@ export async function signUp(_prev: FormState, formData: FormData): Promise<Form
   if (!parsed.success) {
     return { status: "error", fieldErrors: zodFieldErrors(parsed.error), values };
   }
-  const next = safeNextPath(String(formData.get("next") ?? ""), "/onboarding");
+  // /app sends users without a store on to /onboarding.
+  const next = safeNextPath(String(formData.get("next") ?? ""), "/app");
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({

@@ -24,7 +24,8 @@ export default function SignupPage({ searchParams }: { searchParams: SearchParam
 
 async function SignupContent({ searchParams }: { searchParams: SearchParams }) {
   const { next, email } = await searchParams;
-  const nextPath = safeNextPath(next, "/onboarding");
+  // /app sends users without a store on to /onboarding.
+  const nextPath = safeNextPath(next, "/app");
   return (
     <div className="space-y-4">
       <SignupForm next={nextPath} {...(email ? { email } : {})} />

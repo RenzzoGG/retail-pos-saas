@@ -1,29 +1,39 @@
+import { getSiteUrl } from "@/lib/site-url";
+
 /**
- * Returns a same-site relative path for post-login redirects, or the fallback.
- * Prevents open redirects (`?next=https://evil.example` or `//evil.example`).
- * Absolute URLs pointing at our own site are reduced to their path.
+ * Returns a same-site path ("/invite/abc?x=1") to redirect to after sign-in,
+ * sign-up or an email link, or `fallback`. Prevents open redirects.
+ *
+ * Accepted:
+ * - app-relative paths that start with a single "/";
+ * - absolute http(s) URLs on our own origin (`siteUrl`), reduced to their path.
+ *   Supabase's {{ .RedirectTo }} is absolute: it echoes the emailRedirectTo
+ *   that sign-up sends.
+ *
+ * Everything else falls back: other origins, protocol-relative "//evil.example",
+ * "/\evil.example", "javascript:", bare "evil.example". The candidate is parsed
+ * with the WHATWG URL parser (the one browsers use) and its origin compared, so
+ * tricks like "/\t/evil.example" (tabs are stripped) can't slip through.
  */
 export function safeNextPath(
   next: string | null | undefined,
   fallback = "/app",
-  siteUrl?: string,
+  siteUrl: string = getSiteUrl(),
 ): string {
-  if (!next) return fallback;
-  let candidate = next.trim();
+  const candidate = next?.trim();
+  if (!candidate) return fallback;
 
-  if (/^https?:\/\//i.test(candidate)) {
-    if (!siteUrl) return fallback;
-    try {
-      const url = new URL(candidate);
-      if (url.origin !== new URL(siteUrl).origin) return fallback;
-      candidate = url.pathname + url.search;
-    } catch {
-      return fallback;
-    }
-  }
-
-  if (!candidate.startsWith("/") || candidate.startsWith("//") || candidate.startsWith("/\\")) {
+  const isAbsolute = /^https?:\/\//i.test(candidate);
+  if (!isAbsolute && (!candidate.startsWith("/") || candidate.startsWith("//") || candidate.startsWith("/\\"))) {
     return fallback;
   }
-  return candidate;
+
+  try {
+    const base = new URL(siteUrl);
+    const url = new URL(candidate, base);
+    if (url.origin !== base.origin) return fallback;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return fallback;
+  }
 }
