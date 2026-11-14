@@ -141,6 +141,20 @@
       "when": 1793990413611,
       "tag": "20261106184013_demo_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794618771796,
+      "tag": "20261114011251_onboarding_idempotency_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794618773408,
+      "tag": "20261114011253_onboarding_idempotency",
+      "breakpoints": true
     }
   ]
 }

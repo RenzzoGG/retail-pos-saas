@@ -7,6 +7,13 @@ export type FormState = {
   fieldErrors?: Partial<Record<string, string[]>>;
   /** Echo of submitted text values so the form keeps them after an error. */
   values?: Record<string, string>;
+  /**
+   * App path to open with a full page load after success (withDocumentRedirect).
+   * For actions that change what the whole private area renders (first store,
+   * joining a store): a client-side redirect could replay a stale cached
+   * redirect of /app to /onboarding.
+   */
+  redirectTo?: string;
 };
 
 export const initialFormState: FormState = { status: "idle" };

@@ -2,7 +2,6 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import {
   ACTIVE_STORE_COOKIE,
   activeStoreCookieOptions,
@@ -100,6 +99,7 @@ export async function acceptInvitationAction(_prev: FormState, formData: FormDat
   if (!result.ok) return { status: "error", message: result.error };
 
   (await cookies()).set(ACTIVE_STORE_COOKIE, result.data, activeStoreCookieOptions());
-  revalidatePath("/app", "layout");
-  redirect("/app");
+  // Full page load, like createStoreAction: an invitee who was sent from /app
+  // to /onboarding earlier would otherwise replay that cached redirect.
+  return { status: "success", redirectTo: "/app" };
 }

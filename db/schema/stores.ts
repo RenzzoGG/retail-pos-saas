@@ -40,10 +40,17 @@ export const stores = pgTable(
      */
     isDemo: boolean("is_demo").notNull().default(false),
     createdBy: uuid("created_by").references(() => authUsers.id, { onDelete: "set null" }),
+    /**
+     * Client-generated key of the onboarding form that created the store:
+     * public.create_store() returns the existing store when the same user
+     * repeats it (double submit, retry). Not client-writable.
+     */
+    idempotencyKey: uuid("idempotency_key"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
+    unique("stores_creator_idempotency_key").on(t.createdBy, t.idempotencyKey),
     check("stores_name_not_blank", sql`length(trim(${t.name})) > 0`),
     check("stores_slug_format", sql`${t.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`),
     check("stores_currency_iso", sql`${t.currency} ~ '^[A-Z]{3}$'`),

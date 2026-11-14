@@ -13,14 +13,19 @@ export type StoreSettings = {
   ticketFooter: string | null;
 };
 
-/** Creates the store and makes the current user its owner (one atomic SQL call). */
-export async function createStore(db: Db, input: StoreSettingsInput): Promise<Result<string>> {
+/**
+ * Creates the store and makes the current user its owner (one atomic SQL call).
+ * `idempotencyKey` identifies the onboarding form: repeating it (double submit,
+ * retry) returns the store created the first time instead of a second one.
+ */
+export async function createStore(db: Db, input: StoreSettingsInput, idempotencyKey: string): Promise<Result<string>> {
   const { data, error } = await db.rpc("create_store", {
     p_name: input.name,
     p_currency: input.currency,
     p_tax_rate: input.taxRate,
     p_prices_include_tax: input.pricesIncludeTax,
     p_timezone: input.timezone,
+    p_idempotency_key: idempotencyKey,
   });
   if (error || !data) return fail(error);
   return ok(data);

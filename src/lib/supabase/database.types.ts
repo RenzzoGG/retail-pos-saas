@@ -365,14 +365,14 @@ isOneToOne: false
                   ]
                 },"stores": {
                   Row: {
-                    "created_at": string,"created_by": string | null,"currency": string,"id": string,"is_demo": boolean,"last_sale_number": number,"max_cashier_discount_pct": number,"name": string,"prices_include_tax": boolean,"slug": string,"tax_rate": number,"ticket_footer": string | null,"timezone": string,"updated_at": string
+                    "created_at": string,"created_by": string | null,"currency": string,"id": string,"idempotency_key": string | null,"is_demo": boolean,"last_sale_number": number,"max_cashier_discount_pct": number,"name": string,"prices_include_tax": boolean,"slug": string,"tax_rate": number,"ticket_footer": string | null,"timezone": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"id"?: string,"is_demo"?: boolean,"last_sale_number"?: number,"max_cashier_discount_pct"?: number,"name": string,"prices_include_tax"?: boolean,"slug": string,"tax_rate"?: number,"ticket_footer"?: string | null,"timezone"?: string,"updated_at"?: string
+                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"id"?: string,"idempotency_key"?: string | null,"is_demo"?: boolean,"last_sale_number"?: number,"max_cashier_discount_pct"?: number,"name": string,"prices_include_tax"?: boolean,"slug": string,"tax_rate"?: number,"ticket_footer"?: string | null,"timezone"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"id"?: string,"is_demo"?: boolean,"last_sale_number"?: number,"max_cashier_discount_pct"?: number,"name"?: string,"prices_include_tax"?: boolean,"slug"?: string,"tax_rate"?: number,"ticket_footer"?: string | null,"timezone"?: string,"updated_at"?: string
+                    "created_at"?: string,"created_by"?: string | null,"currency"?: string,"id"?: string,"idempotency_key"?: string | null,"is_demo"?: boolean,"last_sale_number"?: number,"max_cashier_discount_pct"?: number,"name"?: string,"prices_include_tax"?: boolean,"slug"?: string,"tax_rate"?: number,"ticket_footer"?: string | null,"timezone"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -433,7 +433,7 @@ isOneToOne: true
 { Args: { "p_items": Json,"p_note"?: string,"p_store_id": string,"p_supplier"?: string }; Returns: string
                            },
 "create_store":
-{ Args: { "p_currency"?: string,"p_name": string,"p_prices_include_tax"?: boolean,"p_tax_rate"?: number,"p_timezone"?: string }; Returns: string
+{ Args: { "p_currency"?: string,"p_idempotency_key"?: string,"p_name": string,"p_prices_include_tax"?: boolean,"p_tax_rate"?: number,"p_timezone"?: string }; Returns: string
                            },
 "dashboard_today":
 { Args: { "p_store_id": string }; Returns: {

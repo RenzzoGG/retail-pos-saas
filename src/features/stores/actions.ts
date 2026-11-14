@@ -12,7 +12,7 @@ import {
 } from "@/lib/auth/dal";
 import { type FormState, formValues, zodFieldErrors } from "@/lib/forms/state";
 import { createClient } from "@/lib/supabase/server";
-import { storeSettingsSchema } from "./schemas";
+import { idempotencyKeySchema, storeSettingsSchema } from "./schemas";
 import { createStore, updateStoreSettings } from "./service";
 
 const FIELDS = ["name", "currency", "taxRatePercent", "pricesIncludeTax", "timezone", "cashierDiscountLimit", "ticketFooter"];
@@ -22,12 +22,19 @@ export async function createStoreAction(_prev: FormState, formData: FormData): P
   const values = formValues(formData, FIELDS);
   const parsed = storeSettingsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { status: "error", fieldErrors: zodFieldErrors(parsed.error), values };
+  const key = idempotencyKeySchema.safeParse(formData.get("idempotencyKey"));
+  if (!key.success) return { status: "error", message: "Please reload the page and try again.", values };
 
-  const result = await createStore(await createClient(), parsed.data);
+  const result = await createStore(await createClient(), parsed.data, key.data);
   if (!result.ok) return { status: "error", message: result.error, values };
 
   (await cookies()).set(ACTIVE_STORE_COOKIE, result.data, activeStoreCookieOptions());
-  redirect("/app");
+  // Not redirect("/app"): if this browser visited /app before having a store
+  // (e.g. right after signing in), the client router cached /app as "redirect
+  // to /onboarding" and a client-side redirect replays it, so the user landed
+  // back on onboarding. The form opens /app with a full page load instead
+  // (withDocumentRedirect), which starts from a fresh router.
+  return { status: "success", redirectTo: "/app" };
 }
 
 /** Remembers the chosen store, but only if the user really is a member of it. */

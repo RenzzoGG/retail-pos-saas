@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useMemo, useRef } from "react";
 import { FormMessage } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/button";
 import { CheckboxField, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { type FormState, initialFormState } from "@/lib/forms/state";
+import { isLeaving, withDocumentRedirect } from "@/lib/forms/document-redirect";
 import { listTimeZones } from "@/lib/timezone";
 import { CURRENCIES } from "../schemas";
 
@@ -25,14 +26,37 @@ type Props = {
   defaults: Defaults;
   submitLabel: string;
   pendingText: string;
+  /** Onboarding: one key per page view, so a double submit creates one store. */
+  idempotencyKey?: string;
 };
 
 /** Used by onboarding (create) and Settings (update). */
-export function StoreSettingsForm({ action, defaults, submitLabel, pendingText }: Props) {
-  const [state, formAction] = useActionState(action, initialFormState);
+export function StoreSettingsForm({ action, defaults, submitLabel, pendingText, idempotencyKey }: Props) {
+  // After creating a store: full page load to /app (see createStoreAction).
+  const actionWithRedirect = useMemo(() => withDocumentRedirect(action), [action]);
+  const [state, formAction] = useActionState(actionWithRedirect, initialFormState);
   const v = state.values;
+  const formRef = useRef<HTMLFormElement>(null);
+  const leaving = isLeaving(state);
+  // Blocks a second submit before React re-renders the button as disabled
+  // (fast double click). Released when the action answers, unless leaving.
+  const submitting = useRef(false);
+  useEffect(() => {
+    if (!leaving) submitting.current = false;
+  }, [state, leaving]);
+
   return (
-    <form action={formAction} className="space-y-5" noValidate>
+    <form
+      ref={formRef}
+      action={formAction}
+      onSubmit={(event) => {
+        if (submitting.current) event.preventDefault();
+        else submitting.current = true;
+      }}
+      className="space-y-5"
+      noValidate
+    >
+      {idempotencyKey ? <input type="hidden" name="idempotencyKey" value={idempotencyKey} /> : null}
       <FormMessage status={state.status} message={state.message} />
       <TextField
         name="name"
@@ -94,7 +118,9 @@ export function StoreSettingsForm({ action, defaults, submitLabel, pendingText }
           errors={state.fieldErrors?.ticketFooter}
         />
       ) : null}
-      <SubmitButton pendingText={pendingText}>{submitLabel}</SubmitButton>
+      <SubmitButton pendingText={pendingText} disabled={leaving}>
+        {leaving ? pendingText : submitLabel}
+      </SubmitButton>
     </form>
   );
 }

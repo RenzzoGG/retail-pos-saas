@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -45,6 +46,9 @@ async function OnboardingContent() {
         defaults={{ name: "", currency: "USD", taxRatePercent: "0", pricesIncludeTax: true, timezone: "UTC" }}
         submitLabel="Create store"
         pendingText="Creating store…"
+        // New per page view (this part renders on every request): every
+        // submit of this form, including a double click, carries the same key.
+        idempotencyKey={randomUUID()}
       />
     </>
   );

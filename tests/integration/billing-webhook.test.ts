@@ -82,7 +82,11 @@ describe("Stripe webhook route", () => {
 
     // A brand-new store (no subscription yet), owned by a seed user.
     owner = await signInAs("otherOwner");
-    const store = await createStore(owner, { name: `Hook Shop ${run}`, currency: "USD", taxRate: 0, pricesIncludeTax: true, timezone: "UTC" });
+    const store = await createStore(
+      owner,
+      { name: `Hook Shop ${run}`, currency: "USD", taxRate: 0, pricesIncludeTax: true, timezone: "UTC" },
+      randomUUID(),
+    );
     if (!store.ok) throw new Error(store.error);
     storeId = store.data;
   });

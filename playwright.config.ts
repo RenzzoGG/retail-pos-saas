@@ -9,6 +9,11 @@ import { DEMO_PASSWORD } from "./tests/fixtures/demo";
  * would be deployed. The server gets the local public URL/key at runtime
  * (never printed or saved). Email links point to http://localhost:3000
  * (supabase/config.toml site_url), so the app must run on that origin.
+ *
+ * Like the Docker image on Railway, the server binds to 0.0.0.0 (HOSTNAME):
+ * Next.js then reports request.url as http(s)://0.0.0.0:3000, so redirects
+ * built from the request instead of NEXT_PUBLIC_SITE_URL show up in tests
+ * (tests/e2e/signup-railway.spec.ts also sends X-Forwarded-Proto: https).
  */
 const supabaseEnv: Record<string, string> = localSupabaseEnv();
 const inherited = Object.fromEntries(
@@ -39,6 +44,8 @@ export default defineConfig({
       ...inherited,
       ...supabaseEnv,
       NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
+      // Read by scripts/start-standalone.mjs: bind like the Railway container.
+      HOSTNAME_BIND: "0.0.0.0",
       // Production has no SMTP defaults: point invitations at local Mailpit.
       SMTP_HOST: "127.0.0.1",
       SMTP_PORT: "54325",

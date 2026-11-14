@@ -49,3 +49,6 @@ export const storeSettingsSchema = z
   }));
 
 export type StoreSettingsInput = z.output<typeof storeSettingsSchema>;
+
+/** One per onboarding page view (see public.create_store). */
+export const idempotencyKeySchema = z.uuid();
