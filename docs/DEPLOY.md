@@ -403,6 +403,7 @@ Reglas que sigue el diseño (y que conviene respetar al editarlo):
 | Un enlace o redirección lleva a `https://0.0.0.0:3000/…` | `NEXT_PUBLIC_SITE_URL` vacío o de otro dominio al construir | Ponlo y **redespliega** (paso 5.6). La app nunca usa la dirección interna del contenedor |
 | "That link is invalid or has expired" | El enlace ya se usó en **otro** navegador, o caducó (1 hora) | Pide otro enlace. Si se usó en el mismo navegador, la app continúa sin error |
 | Tras confirmar, se llega a la landing en vez de la app | `https://stocktill.renzzogg.com/**` no está en Redirect URLs | Paso 3.1 (Supabase cambia el destino por el Site URL; la app lo trata como "sin destino" y va a `/app`) |
+| Falta `Strict-Transport-Security` o `upgrade-insecure-requests` en las respuestas | `NEXT_PUBLIC_SITE_URL` no era una URL `https://` válida al construir | Revísala y **redespliega**. Espacios al inicio o al final y mayúsculas en el esquema ya no importan: los encabezados y `getSiteUrl()` la normalizan igual (`parseSiteUrl` en `src/lib/site-url.ts`) |
 | Webhook en 400 | `STRIPE_WEBHOOK_SECRET` es el de `stripe listen` | Usa el del endpoint de producción (paso 6.3) |
 | *Try as …* dice que la demo no está disponible | No se corrió `demo-provision.mjs` o la contraseña no coincide | Paso 7.3, con la misma contraseña que `NEXT_PUBLIC_DEMO_PASSWORD` |
 | Todo da error de conexión de repente | Proyecto de Supabase pausado por inactividad | Panel de Supabase → **Restore project** |

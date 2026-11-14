@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { absoluteUrl, getSiteUrl } from "@/lib/site-url";
+import { absoluteUrl, getSiteUrl, isHttpsSiteUrl, parseSiteUrl } from "@/lib/site-url";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -52,3 +52,25 @@ describe("absoluteUrl", () => {
     expect(() => absoluteUrl("app")).toThrow();
   });
 });
+
+describe("parseSiteUrl / isHttpsSiteUrl (shared with the security headers)", () => {
+  it.each([" https://x.com", "https://x.com ", "HTTPS://x.com"])("%j is https and gives the same origin as getSiteUrl()", (raw) => {
+    expect(isHttpsSiteUrl(raw)).toBe(true);
+    const parsed = parseSiteUrl(raw);
+    expect(parsed.ok && parsed.url.origin).toBe("https://x.com");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", raw);
+    expect(getSiteUrl()).toBe("https://x.com");
+  });
+
+  it.each([
+    ["http://x.com", true, false],
+    ["", false, false],
+    [undefined, false, false],
+    ["x.com", false, false],
+    ["ftp://x.com", false, false],
+  ])("%j: valid=%s, https=%s", (raw, valid, https) => {
+    expect(parseSiteUrl(raw).ok).toBe(valid);
+    expect(isHttpsSiteUrl(raw)).toBe(https);
+  });
+});
+

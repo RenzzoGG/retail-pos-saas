@@ -78,4 +78,22 @@ describe("buildSecurityHeaders", () => {
     );
     expect(byKey(buildSecurityHeaders({ ...prod, isDev: true }))).not.toHaveProperty("Strict-Transport-Security");
   });
+
+  it.each([" https://x.com", "https://x.com ", "HTTPS://x.com", "\thttps://x.com/\n"])(
+    "normalizes the site URL like getSiteUrl(): %j gets HSTS and upgrade-insecure-requests",
+    (siteUrl) => {
+      const headers = byKey(buildSecurityHeaders({ ...prod, siteUrl }));
+      expect(headers["Strict-Transport-Security"]).toBe("max-age=63072000; includeSubDomains");
+      expect(headers["Content-Security-Policy"]).toContain("upgrade-insecure-requests");
+    },
+  );
+
+  it.each(["http://x.com", " http://x.com ", "", undefined, "x.com", "https//x.com", "ftp://x.com"])(
+    "%j gets neither HSTS nor upgrade-insecure-requests",
+    (siteUrl) => {
+      const headers = byKey(buildSecurityHeaders({ ...prod, siteUrl }));
+      expect(headers).not.toHaveProperty("Strict-Transport-Security");
+      expect(headers["Content-Security-Policy"]).not.toContain("upgrade-insecure-requests");
+    },
+  );
 });

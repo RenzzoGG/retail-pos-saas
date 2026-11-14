@@ -8,6 +8,8 @@
  * needs for hydration. Everything else is locked down: scripts only from this
  * origin, no framing, forms only to this origin and Stripe's hosted pages.
  */
+// Relative import: next.config.ts loads this file outside the "@/" alias.
+import { isHttpsSiteUrl } from "./site-url";
 
 export type SecurityHeaderOptions = {
   /** NEXT_PUBLIC_SUPABASE_URL (the browser may talk to Supabase directly). */
@@ -34,10 +36,6 @@ function origins(url: string | undefined): string[] {
   }
 }
 
-function isHttps(url: string | undefined): boolean {
-  return !!url && url.startsWith("https://");
-}
-
 export function buildContentSecurityPolicy({ supabaseUrl, siteUrl, isDev }: SecurityHeaderOptions): string {
   const directives: [string, ...string[]][] = [
     ["default-src", "'self'"],
@@ -57,7 +55,7 @@ export function buildContentSecurityPolicy({ supabaseUrl, siteUrl, isDev }: Secu
     ["worker-src", "'self'", "blob:"],
   ];
   const policy = directives.map((d) => d.join(" "));
-  if (isHttps(siteUrl) && !isDev) policy.push("upgrade-insecure-requests");
+  if (isHttpsSiteUrl(siteUrl) && !isDev) policy.push("upgrade-insecure-requests");
   return policy.join("; ");
 }
 
@@ -74,7 +72,7 @@ export function buildSecurityHeaders(options: SecurityHeaderOptions): Header[] {
     { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
     { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   ];
-  if (isHttps(options.siteUrl) && !options.isDev) {
+  if (isHttpsSiteUrl(options.siteUrl) && !options.isDev) {
     // Two years. No `preload`: that is a hard-to-undo browser list entry for the domain.
     headers.push({ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" });
   }
