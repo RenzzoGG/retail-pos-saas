@@ -81,6 +81,23 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
   const submitting = useRef(false);
   const scanRef = useRef<HTMLInputElement>(null);
   const customerRef = useRef<HTMLInputElement>(null);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+
+  // Phones: the page gets a bottom padding equal to the fixed total/Charge bar
+  // (its real height, safe area included), so the end of the page is never
+  // under it. Measured because the bar's height depends on fonts and insets.
+  useEffect(() => {
+    const bar = barRef.current;
+    const layout = layoutRef.current;
+    if (!bar || !layout) return;
+    const update = () => layout.style.setProperty("--pos-bar-h", `${bar.offsetHeight}px`);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(bar);
+    return () => observer.disconnect();
+    // Re-measure when the terminal comes back after the "sale completed" screen.
+  }, [done]);
   const searchSeq = useRef(0);
   const customerSeq = useRef(0);
 
@@ -313,7 +330,10 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
   if (done) return <SaleCompleted sale={done} currency={currency} onNewSale={newSale} />;
 
   return (
-    <div className="grid grid-cols-1 gap-6 pb-20 lg:grid-cols-[minmax(0,1fr)_22rem] lg:pb-0">
+    <div
+      ref={layoutRef}
+      className="grid grid-cols-1 gap-6 pb-[var(--pos-bar-h,calc(5rem+env(safe-area-inset-bottom)))] lg:grid-cols-[minmax(0,1fr)_22rem] lg:pb-0"
+    >
       {/* ---------------------------------------------------------- cart side */}
       <section aria-labelledby="cart-heading" className="min-w-0 space-y-4">
         <div className="space-y-1">
@@ -599,7 +619,10 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
       <ShortcutBar />
 
       {/* Tablets/phones: the total and the Charge button always in reach. */}
-      <div data-pos-bottom-bar className="fixed inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:hidden dark:border-slate-800 dark:bg-slate-900/95">
+      <div
+        ref={barRef}
+        data-pos-bottom-bar
+        className="fixed inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 border-t border-slate-200 bg-white/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur lg:hidden dark:border-slate-800 dark:bg-slate-900/95">
         <span className="text-lg font-semibold tabular-nums">
           <span className="sr-only">Total </span>
           {money(totals.totalCents)}

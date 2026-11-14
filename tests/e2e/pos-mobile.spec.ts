@@ -163,3 +163,41 @@ test("name matches stay visible above an open on-screen keyboard", async ({ page
   expect(box.x + box.width).toBeLessThanOrEqual(390);
   await page.screenshot({ path: "test-results/pos-mobile-keyboard-open.png" });
 });
+
+test("the fixed total bar never covers the end of the page", async ({ page }) => {
+  await openPosAsCashier(page);
+  for (const code of CODES) {
+    await page.keyboard.type(code, { delay: 2 });
+    await page.keyboard.press("Enter");
+  }
+  await expect(page.getByTestId("cart-line-PWB-20K")).toBeVisible();
+  await page.mouse.click(5, 5);
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+
+  const bar = page.locator("[data-pos-bottom-bar]");
+  await expect(bar).toBeVisible();
+  // The page padding matches the bar's real height (measured, safe area included).
+  const { barTop, lastBottom, padding, barHeight } = await page.evaluate(() => {
+    const barEl = document.querySelector<HTMLElement>("[data-pos-bottom-bar]")!;
+    let lastBottom = 0;
+    for (const el of document.querySelectorAll<HTMLElement>("main *")) {
+      // Leaf elements only (real content): containers include the padding itself.
+      if (barEl.contains(el) || el.children.length > 0) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && getComputedStyle(el).position !== "fixed") lastBottom = Math.max(lastBottom, r.bottom);
+    }
+    const layout = barEl.parentElement!;
+    return {
+      barTop: barEl.getBoundingClientRect().top,
+      barHeight: barEl.offsetHeight,
+      lastBottom,
+      padding: parseFloat(getComputedStyle(layout).paddingBottom),
+    };
+  });
+  expect(padding).toBe(barHeight);
+  expect(lastBottom).toBeLessThanOrEqual(barTop);
+  // The summary's own Charge button is fully visible above the bar.
+  await expect(page.getByRole("button", { name: /^Charge \$/ })).toBeInViewport({ ratio: 1 });
+  const charge = (await page.getByRole("button", { name: /^Charge \$/ }).boundingBox())!;
+  expect(charge.y + charge.height).toBeLessThanOrEqual(barTop);
+});
