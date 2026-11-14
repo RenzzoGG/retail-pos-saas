@@ -49,6 +49,7 @@ async function OnboardingContent() {
         // New per page view (this part renders on every request): every
         // submit of this form, including a double click, carries the same key.
         idempotencyKey={randomUUID()}
+        detectTimeZone
       />
     </>
   );

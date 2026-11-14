@@ -7,8 +7,10 @@ import { waitForLink } from "./mailpit";
  * (playwright.config.ts) and every request carries X-Forwarded-Proto: https,
  * as Railway's edge sends it. With both, Next.js reports request.url as
  * https://0.0.0.0:3000, which used to leak into redirects.
+ *
+ * The browser's time zone is America/Lima: onboarding must preselect it.
  */
-test.use({ extraHTTPHeaders: { "x-forwarded-proto": "https" } });
+test.use({ extraHTTPHeaders: { "x-forwarded-proto": "https" }, timezoneId: "America/Lima" });
 
 const run = Date.now();
 const PASSWORD = `e2e-${run}-Pass`; // throwaway password for throwaway local users
@@ -33,6 +35,7 @@ async function signUp(page: Page, email: string) {
 
 async function createStoreAndExpectDashboard(page: Page, store: string) {
   await expect(page).toHaveURL(/\/onboarding$/);
+  await expect(page.getByLabel("Time zone")).toHaveValue("America/Lima");
   await page.getByLabel("Store name").fill(store);
   await page.getByRole("button", { name: "Create store" }).click();
 
@@ -79,7 +82,10 @@ test("manual sign-in → onboarding → dashboard (the path that bounced back to
   await confirmContext.close();
 
   // …then sign in by hand in another, like after a failed confirmation redirect.
-  const context = await browser.newContext({ extraHTTPHeaders: { "x-forwarded-proto": "https" } });
+  const context = await browser.newContext({
+    extraHTTPHeaders: { "x-forwarded-proto": "https" },
+    timezoneId: "America/Lima",
+  });
   const page = await context.newPage();
   const checkNoLeaks = forbidInternalOrigin(page);
   await page.goto("/login");

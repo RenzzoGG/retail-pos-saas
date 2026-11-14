@@ -6,7 +6,7 @@ import { SubmitButton } from "@/components/ui/button";
 import { CheckboxField, SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { type FormState, initialFormState } from "@/lib/forms/state";
 import { isLeaving, withDocumentRedirect } from "@/lib/forms/document-redirect";
-import { listTimeZones } from "@/lib/timezone";
+import { listTimeZones, preferredTimeZone } from "@/lib/timezone";
 import { CURRENCIES } from "../schemas";
 
 type Defaults = {
@@ -28,10 +28,12 @@ type Props = {
   pendingText: string;
   /** Onboarding: one key per page view, so a double submit creates one store. */
   idempotencyKey?: string;
+  /** Onboarding: preselect the browser's time zone (when offered), else UTC. */
+  detectTimeZone?: boolean;
 };
 
 /** Used by onboarding (create) and Settings (update). */
-export function StoreSettingsForm({ action, defaults, submitLabel, pendingText, idempotencyKey }: Props) {
+export function StoreSettingsForm({ action, defaults, submitLabel, pendingText, idempotencyKey, detectTimeZone }: Props) {
   // After creating a store: full page load to /app (see createStoreAction).
   const actionWithRedirect = useMemo(() => withDocumentRedirect(action), [action]);
   const [state, formAction] = useActionState(actionWithRedirect, initialFormState);
@@ -44,6 +46,18 @@ export function StoreSettingsForm({ action, defaults, submitLabel, pendingText, 
   useEffect(() => {
     if (!leaving) submitting.current = false;
   }, [state, leaving]);
+
+  // The browser's zone is only known on the client: the server renders the
+  // default (UTC) and the select is updated after hydration, unless the form
+  // is showing values echoed back after an error.
+  const echoedTimeZone = v?.timezone;
+  useEffect(() => {
+    if (!detectTimeZone || echoedTimeZone) return;
+    const select = formRef.current?.elements.namedItem("timezone");
+    if (select instanceof HTMLSelectElement) {
+      select.value = preferredTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    }
+  }, [detectTimeZone, echoedTimeZone]);
 
   return (
     <form

@@ -9,6 +9,14 @@ export function listTimeZones(): string[] {
   return ["UTC", ...zones.filter((z) => z !== "UTC")];
 }
 
+/**
+ * Default zone for a new store: the browser's (Intl.DateTimeFormat().resolvedOptions().timeZone)
+ * when it is one of the offered zones, otherwise UTC.
+ */
+export function preferredTimeZone(candidate: string | null | undefined, zones: readonly string[] = listTimeZones()): string {
+  return candidate && zones.includes(candidate) ? candidate : "UTC";
+}
+
 export function isValidTimeZone(timeZone: string): boolean {
   try {
     new Intl.DateTimeFormat("en-US", { timeZone });

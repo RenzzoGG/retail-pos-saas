@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { idempotencyKeySchema, storeSettingsSchema } from "@/features/stores/schemas";
+import { listTimeZones, preferredTimeZone } from "@/lib/timezone";
 
 const base = { name: "Shop", currency: "USD", taxRatePercent: "8.25", timezone: "America/New_York" };
 
@@ -16,6 +17,22 @@ describe("store settings: receipt note", () => {
 
   it("is at most 200 characters", () => {
     expect(storeSettingsSchema.safeParse({ ...base, ticketFooter: "x".repeat(201) }).success).toBe(false);
+  });
+});
+
+describe("onboarding: default time zone", () => {
+  it("uses the browser's zone when it is offered", () => {
+    expect(preferredTimeZone("America/Lima")).toBe("America/Lima");
+    expect(preferredTimeZone("Europe/Madrid")).toBe("Europe/Madrid");
+    expect(listTimeZones()).toContain("America/Lima");
+  });
+
+  it("falls back to UTC for unknown, alias or missing zones", () => {
+    expect(preferredTimeZone("Mars/Olympus_Mons")).toBe("UTC");
+    expect(preferredTimeZone("America/Lima", ["UTC", "Europe/Madrid"])).toBe("UTC");
+    expect(preferredTimeZone("")).toBe("UTC");
+    expect(preferredTimeZone(undefined)).toBe("UTC");
+    expect(preferredTimeZone("UTC")).toBe("UTC");
   });
 });
 
