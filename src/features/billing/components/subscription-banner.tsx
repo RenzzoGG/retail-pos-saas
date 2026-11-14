@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InfoIcon, WarningIcon } from "@/components/ui/icons";
 import { createClient } from "@/lib/supabase/server";
 import { accessFor, trialDaysLeft } from "../access";
 import { getSubscription } from "../service";
@@ -39,16 +40,16 @@ export async function SubscriptionBanner({ storeId, isOwner }: { storeId: string
           : "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-100"
       }`}
     >
-      <p>
-        <span aria-hidden="true" className="mr-1 font-bold">{warning ? "!" : "i"}</span>
-        {text}
+      <p className="flex items-start gap-2">
+        {warning ? <WarningIcon className="text-amber-600 dark:text-amber-400" /> : <InfoIcon className="text-sky-600 dark:text-sky-400" />}
+        <span>{text}</span>
       </p>
       {isOwner ? (
-        <Link href="/app/billing" className="shrink-0 font-semibold underline">
+        <Link href="/app/billing" className="shrink-0 pl-7 font-semibold underline sm:pl-0">
           Go to Billing
         </Link>
       ) : (
-        <span className="shrink-0">Ask the store owner.</span>
+        <span className="shrink-0 pl-7 sm:pl-0">Ask the store owner.</span>
       )}
     </div>
   );

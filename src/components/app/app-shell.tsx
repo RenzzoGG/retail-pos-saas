@@ -14,12 +14,12 @@ export async function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="border-b border-slate-200 bg-white p-4 md:w-64 md:shrink-0 md:border-r md:border-b-0 dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between md:block">
+        <div className="flex items-center justify-between px-3 md:block">
           <Link href="/app" className="rounded text-lg font-bold tracking-tight text-slate-900 dark:text-white">
             Stocktill
           </Link>
         </div>
-        <div className="my-4 space-y-1">
+        <div className="my-4 space-y-1 px-3">
           {memberships.length > 1 ? (
             <StoreSwitcher memberships={memberships} activeStoreId={store.storeId} />
           ) : (
@@ -33,7 +33,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
           </p>
         </div>
         <SidebarNav items={navForRole(store.role)} />
-        <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-800">
+        <div className="mt-6 border-t border-slate-200 px-3 pt-4 dark:border-slate-800">
           <p className="truncate text-xs text-slate-500" title={user.email}>
             {user.email}
           </p>
@@ -60,7 +60,7 @@ export function AppShellSkeleton() {
   return (
     <div className="flex min-h-screen flex-col md:flex-row" aria-busy="true">
       <aside className="border-b border-slate-200 bg-white p-4 md:w-64 md:border-r md:border-b-0 dark:border-slate-800 dark:bg-slate-900">
-        <p className="text-lg font-bold tracking-tight">Stocktill</p>
+        <p className="px-3 text-lg font-bold tracking-tight">Stocktill</p>
       </aside>
       <main className="flex-1 bg-slate-50 p-8 dark:bg-slate-950">
         <p className="text-sm text-slate-500">Loading…</p>
