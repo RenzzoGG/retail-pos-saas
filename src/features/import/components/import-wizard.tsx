@@ -285,7 +285,7 @@ function PreviewTable({ rows }: { rows: ValidatedRow[] }) {
     return <p className="text-sm text-slate-600 dark:text-slate-400">No rows in this view.</p>;
   }
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <div className="relative overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
         <caption className="sr-only">Rows in the file and their status</caption>
         <thead className="bg-slate-50 text-left text-slate-700 dark:bg-slate-800 dark:text-slate-300">

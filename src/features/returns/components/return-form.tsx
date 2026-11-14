@@ -78,7 +78,7 @@ export function ReturnForm({ saleId, currency, total, subtotal, refunded, items,
           ) : null}
         </Alert>
       ) : null}
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="min-w-full text-sm">
           <caption className="sr-only">Items that can be returned</caption>
           <thead className="text-left text-slate-600 dark:text-slate-400">

@@ -108,7 +108,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
             <p className="text-sm text-slate-600 dark:text-slate-400">No movements yet.</p>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="relative overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <caption className="sr-only">Stock movements of {p.name}</caption>
                   <thead className="text-left text-slate-600 dark:text-slate-400">

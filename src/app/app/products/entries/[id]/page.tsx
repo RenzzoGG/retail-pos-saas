@@ -41,7 +41,7 @@ export default async function StockEntryPage({ params, searchParams }: Props) {
         </div>
       ) : null}
       {e.note ? <p className="mb-4 text-sm text-slate-700 dark:text-slate-300">Note: {e.note}</p> : null}
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      <div className="relative overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
           <caption className="sr-only">Products received</caption>
           <thead className="bg-slate-50 text-left text-slate-700 dark:bg-slate-800 dark:text-slate-300">

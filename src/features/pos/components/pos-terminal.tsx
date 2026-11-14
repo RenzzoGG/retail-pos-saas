@@ -353,76 +353,96 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
             The cart is empty. Scan a product to start a sale.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-              <caption className="sr-only">Products in this sale</caption>
-              <thead className="bg-slate-50 text-left text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                <tr>
-                  <th scope="col" className="px-3 py-2 font-medium">Product</th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">Price</th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">Qty</th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">Discount</th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">Total</th>
-                  <th scope="col" className="px-3 py-2"><span className="sr-only">Remove</span></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                {items.map((item, index) => {
-                  const line = totals.lines[index];
-                  const flagged = errorProductId === item.productId;
-                  return (
-                    <tr key={item.productId} data-testid={`cart-line-${item.sku}`} className={flagged ? "bg-red-50 dark:bg-red-950" : ""}>
-                      <td className="px-3 py-2">
-                        <span className="font-medium">{item.name}</span>
-                        <span className="block font-mono text-xs text-slate-500">{item.sku}</span>
-                        {line?.overStock ? (
-                          <span className="mt-1 block text-xs font-medium text-amber-700 dark:text-amber-400" role="status">
-                            Only {item.stock} in stock
+          // Cart width, not screen width, picks the layout (container query): below
+          // 36rem each line is a stacked card (name and SKU on top; quantity,
+          // discount, total and remove below), so a phone never scrolls sideways.
+          // From 36rem up it is the usual table. Same inputs and labels in both.
+          <div className="@container overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+            <div className="relative overflow-x-auto">
+              <table className="block w-full text-sm @xl:table @xl:min-w-full @xl:divide-y @xl:divide-slate-200 @xl:dark:divide-slate-800">
+                <caption className="sr-only">Products in this sale</caption>
+                <thead className="hidden bg-slate-50 text-left text-slate-700 @xl:table-header-group dark:bg-slate-800 dark:text-slate-300">
+                  <tr>
+                    <th scope="col" className="px-3 py-2 font-medium">Product</th>
+                    <th scope="col" className="px-3 py-2 text-right font-medium">Price</th>
+                    <th scope="col" className="px-3 py-2 text-right font-medium">Qty</th>
+                    <th scope="col" className="px-3 py-2 text-right font-medium">Discount</th>
+                    <th scope="col" className="px-3 py-2 text-right font-medium">Total</th>
+                    <th scope="col" className="px-3 py-2"><span className="sr-only">Remove</span></th>
+                  </tr>
+                </thead>
+                <tbody className="block divide-y divide-slate-200 @xl:table-row-group dark:divide-slate-800">
+                  {items.map((item, index) => {
+                    const line = totals.lines[index];
+                    const flagged = errorProductId === item.productId;
+                    const price = formatMoney(item.unitPrice, currency);
+                    return (
+                      <tr
+                        key={item.productId}
+                        data-testid={`cart-line-${item.sku}`}
+                        className={`grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-end gap-x-3 gap-y-2 p-3 @xl:table-row @xl:p-0 ${flagged ? "bg-red-50 dark:bg-red-950" : ""}`}
+                      >
+                        <td className="col-span-4 @xl:px-3 @xl:py-2">
+                          <span className="font-medium">{item.name}</span>
+                          <span className="block font-mono text-xs text-slate-500">
+                            {item.sku}
+                            {/* The price column is hidden in the card layout: show it here. */}
+                            <span className="font-sans @xl:hidden"> · {price} each</span>
                           </span>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">{formatMoney(item.unitPrice, currency)}</td>
-                      <td className="px-3 py-2 text-right">
-                        <QuantityInput
-                          id={`qty-${item.productId}`}
-                          label={`Quantity of ${item.name}`}
-                          value={item.quantity}
-                          onCommit={(qty) =>
-                            changeCart(() => setItems((cur) => cur.map((i) => (i.productId === item.productId ? { ...i, quantity: qty } : i))))
-                          }
-                          onBarcode={(scanned) => {
-                            setScanMessage({ tone: "info", text: "That looked like a barcode: added it as a product." });
-                            scanCode(scanned);
-                          }}
-                          onDone={backToScan}
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <DiscountInput
-                          id={`disc-${item.productId}`}
-                          label={`Discount on ${item.name}`}
-                          value={item.discount}
-                          currency={currency}
-                          invalid={Boolean(line?.invalidDiscount)}
-                          onDone={backToScan}
-                          onChange={(d) => changeCart(() => setItems((cur) => cur.map((i) => (i.productId === item.productId ? { ...i, discount: d } : i))))}
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">{money(line?.totalCents ?? 0)}</td>
-                      <td className="px-3 py-2 text-right">
-                        <Button
-                          variant="ghost"
-                          aria-label={`Remove ${item.name}`}
-                          onClick={() => changeCart(() => setItems((cur) => cur.filter((i) => i.productId !== item.productId)))}
-                        >
-                          <XMarkIcon size="sm" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          {line?.overStock ? (
+                            <span className="mt-1 block text-xs font-medium text-amber-700 dark:text-amber-400" role="status">
+                              Only {item.stock} in stock
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="hidden px-3 py-2 text-right tabular-nums @xl:table-cell">{price}</td>
+                        <td className="@xl:px-3 @xl:py-2 @xl:text-right">
+                          <CardCaption>Qty</CardCaption>
+                          <QuantityInput
+                            id={`qty-${item.productId}`}
+                            label={`Quantity of ${item.name}`}
+                            value={item.quantity}
+                            onCommit={(qty) =>
+                              changeCart(() => setItems((cur) => cur.map((i) => (i.productId === item.productId ? { ...i, quantity: qty } : i))))
+                            }
+                            onBarcode={(scanned) => {
+                              setScanMessage({ tone: "info", text: "That looked like a barcode: added it as a product." });
+                              scanCode(scanned);
+                            }}
+                            onDone={backToScan}
+                          />
+                        </td>
+                        <td className="@xl:px-3 @xl:py-2 @xl:text-right">
+                          <CardCaption>Discount</CardCaption>
+                          <DiscountInput
+                            id={`disc-${item.productId}`}
+                            label={`Discount on ${item.name}`}
+                            value={item.discount}
+                            currency={currency}
+                            invalid={Boolean(line?.invalidDiscount)}
+                            onDone={backToScan}
+                            onChange={(d) => changeCart(() => setItems((cur) => cur.map((i) => (i.productId === item.productId ? { ...i, discount: d } : i))))}
+                          />
+                        </td>
+                        <td className="text-right tabular-nums @xl:px-3 @xl:py-2">
+                          <CardCaption>Total</CardCaption>
+                          <span className="inline-block py-1 font-medium @xl:py-0 @xl:font-normal">{money(line?.totalCents ?? 0)}</span>
+                        </td>
+                        <td className="text-right @xl:px-3 @xl:py-2">
+                          <Button
+                            variant="ghost"
+                            aria-label={`Remove ${item.name}`}
+                            onClick={() => changeCart(() => setItems((cur) => cur.filter((i) => i.productId !== item.productId)))}
+                          >
+                            <XMarkIcon size="sm" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </section>
@@ -630,7 +650,7 @@ function DiscountInput({
           const n = Number(text);
           if (Number.isFinite(n) && n >= 0) onChange({ kind, value: n });
         }}
-        className={`${wide ? "flex-1" : "w-20"} rounded-md border border-slate-300 bg-white px-2 py-1 text-right tabular-nums focus-visible:ring-2 focus-visible:ring-indigo-500 aria-[invalid=true]:border-red-500 dark:border-slate-600 dark:bg-slate-900`}
+        className={`${wide ? "flex-1" : "w-16 @xl:w-20"} rounded-md border border-slate-300 bg-white px-2 py-1 text-right tabular-nums focus-visible:ring-2 focus-visible:ring-indigo-500 aria-[invalid=true]:border-red-500 dark:border-slate-600 dark:bg-slate-900`}
       />
       <label htmlFor={`${id}-kind`} className="sr-only">
         {label}: percent or amount
@@ -649,6 +669,15 @@ function DiscountInput({
         <option value="percent">%</option>
       </select>
     </div>
+  );
+}
+
+/** Visible column name for the card layout; the inputs keep their own labels. */
+function CardCaption({ children }: { children: string }) {
+  return (
+    <span aria-hidden="true" className="mb-1 block text-xs text-slate-500 @xl:hidden dark:text-slate-400">
+      {children}
+    </span>
   );
 }
 
@@ -778,7 +807,7 @@ function QuantityInput({
           }
           onDone();
         }}
-        className="w-20 rounded-md border border-slate-300 bg-white px-2 py-1 text-right tabular-nums focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900"
+        className="w-14 rounded-md border border-slate-300 bg-white px-2 py-1 text-right tabular-nums @xl:w-20 focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900"
       />
     </>
   );

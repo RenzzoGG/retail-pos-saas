@@ -1,0 +1,62 @@
+import { expect, test } from "@playwright/test";
+import { DEMO_PASSWORD } from "../fixtures/demo";
+import { DEMO } from "./auth";
+
+/**
+ * POS on a phone (390 px): with 4 products in the cart the page never scrolls
+ * sideways, each cart line is a stacked card (the table header is hidden), the
+ * inputs keep their labels and the keyboard flow still works.
+ */
+const CODES = ["2000000000015", "2000000000015", "2000000000053", "2000000000152", "2000000000107"];
+const SKUS = ["CBL-USBC-1M", "CHG-20W-C", "CAS-IP15-CLR", "PWB-20K"];
+
+test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+test("POS cart with 4 products has no horizontal scroll at 390 px", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("Email", { exact: true }).fill(DEMO.cashier);
+  await page.getByLabel("Password").fill(DEMO_PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page).toHaveURL(/\/app$/);
+
+  await page.goto("/app/pos", { waitUntil: "networkidle" });
+  const scan = page.getByLabel(/Scan or search/);
+  await expect(scan).toBeFocused();
+  for (const code of CODES) {
+    await page.keyboard.type(code, { delay: 2 });
+    await page.keyboard.press("Enter");
+  }
+  for (const sku of SKUS) await expect(page.getByTestId(`cart-line-${sku}`)).toBeVisible();
+  await expect(page.getByTestId("cart-line-CBL-USBC-1M").getByLabel(/^Quantity of/)).toHaveValue("2");
+
+  // No horizontal scroll, and every cart line fits inside the viewport.
+  const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
+  for (const sku of SKUS) {
+    const box = await page.getByTestId(`cart-line-${sku}`).boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  }
+
+  // Card layout: no table header; the name stays on one line above the inputs.
+  await expect(page.getByRole("columnheader", { name: "Discount" })).toBeHidden();
+  const line = page.getByTestId("cart-line-CHG-20W-C");
+  const name = await line.getByText("20 W USB-C Wall Charger", { exact: true }).boundingBox();
+  const qty = await line.getByLabel("Quantity of 20 W USB-C Wall Charger").boundingBox();
+  expect(name!.height).toBeLessThan(30);
+  expect(qty!.y).toBeGreaterThan(name!.y + name!.height);
+
+  // Labels and keyboard flow are unchanged: edit a quantity, Enter goes back to scanning.
+  await line.getByLabel("Quantity of 20 W USB-C Wall Charger").fill("2");
+  await page.keyboard.press("Enter");
+  await expect(scan).toBeFocused();
+  await line.getByLabel("Discount on 20 W USB-C Wall Charger", { exact: true }).fill("1");
+  await expect(line.getByLabel("Discount on 20 W USB-C Wall Charger: percent or amount")).toBeVisible();
+  // 2 x 9.99 + 2 x 19.99 + 15.99 + 49.99 - 1.00 = 124.94
+  await expect(page.getByTestId("pos-total")).toHaveText("$124.94");
+  await expect(page.getByRole("button", { name: "Remove Power Bank 20,000 mAh" })).toBeVisible();
+});

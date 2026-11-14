@@ -60,7 +60,7 @@ export default async function ImportProductsPage() {
           ) : history.data.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">No imports yet.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="min-w-full text-sm">
                 <caption className="sr-only">Recent imports</caption>
                 <thead className="text-left text-slate-600 dark:text-slate-400">

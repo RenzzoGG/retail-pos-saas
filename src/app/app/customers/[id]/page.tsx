@@ -58,7 +58,7 @@ export default async function CustomerPage({ params, searchParams }: Props) {
             {c.purchases.length === 0 ? (
               <p className="text-sm text-slate-600 dark:text-slate-400">No purchases yet.</p>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="relative overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <caption className="sr-only">Purchases of {c.name}</caption>
                   <thead className="text-left text-slate-600 dark:text-slate-400">

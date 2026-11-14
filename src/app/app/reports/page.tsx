@@ -137,7 +137,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                 </Link>
               ))}
             </nav>
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="min-w-full text-sm" data-testid="report-products">
                 <caption className="sr-only">Best sellers {top === "units" ? "by units" : "by revenue"}</caption>
                 <thead className="text-left text-slate-600 dark:text-slate-400">
@@ -185,7 +185,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
               />
             </Card>
             <Card title="By payment method" description="Collected at checkout minus refunds paid out.">
-              <div className="overflow-x-auto">
+              <div className="relative overflow-x-auto">
                 <table className="min-w-full text-sm" data-testid="report-methods">
                   <caption className="sr-only">Sales by payment method</caption>
                   <thead className="text-left text-slate-600 dark:text-slate-400">
@@ -214,7 +214,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           </div>
 
           <Card title="By cashier" description="Sales rung up by each team member.">
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="min-w-full text-sm" data-testid="report-cashiers">
                 <caption className="sr-only">Sales by cashier</caption>
                 <thead className="text-left text-slate-600 dark:text-slate-400">

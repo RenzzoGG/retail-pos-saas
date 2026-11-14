@@ -66,7 +66,7 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-6">
           <Card title="Items">
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="min-w-full text-sm">
                 <caption className="sr-only">Items sold</caption>
                 <thead className="text-left text-slate-600 dark:text-slate-400">
