@@ -8,6 +8,7 @@ import { getSubscription } from "@/features/billing/service";
 import { TRIAL_DAYS, getStripe } from "@/features/billing/stripe";
 import { requireRole } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
+import { CheckCircleIcon, InfoIcon, WarningIcon } from "@/components/ui/icons";
 
 export const metadata: Metadata = { title: "Billing · Stocktill" };
 
@@ -32,7 +33,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const canCheckout = !isCurrent(s);
   const canManage = !!s?.stripeCustomerId;
   const tone = access === "full" ? (s?.status === "past_due" ? "warning" : "ok") : access === "setup" ? "info" : "warning";
-  const icon = { ok: "✓", warning: "!", info: "i" }[tone];
+  const StatusIcon = { ok: CheckCircleIcon, warning: WarningIcon, info: InfoIcon }[tone];
 
   return (
     <>
@@ -49,18 +50,15 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             <div>
               <dt className="sr-only">Status</dt>
               <dd className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white" data-testid="billing-status">
-                <span
-                  aria-hidden="true"
-                  className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                <StatusIcon
+                  className={
                     tone === "ok"
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+                      ? "text-green-600 dark:text-green-400"
                       : tone === "warning"
-                        ? "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100"
-                        : "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100"
-                  }`}
-                >
-                  {icon}
-                </span>
+                        ? "text-amber-600 dark:text-amber-400"
+                        : "text-slate-500 dark:text-slate-400"
+                  }
+                />
                 {statusLabel(s)}
               </dd>
             </div>

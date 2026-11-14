@@ -1,5 +1,6 @@
 import { formatPercent } from "@/lib/money";
 import { change } from "../ranges";
+import { ArrowDownIcon, ArrowUpIcon } from "@/components/ui/icons";
 
 type Props = {
   label: string;
@@ -28,8 +29,8 @@ export function StatCard({ label, value, current, previous, previousLabel, previ
       const up = delta > 0;
       const good = up === goodWhenUp;
       trend = (
-        <span className={good ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}>
-          <span aria-hidden="true">{up ? "▲" : "▼"}</span> {up ? "Up" : "Down"} {formatPercent(Math.abs(delta))}
+        <span className={`inline-flex items-center gap-1 ${good ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+          {up ? <ArrowUpIcon size="sm" /> : <ArrowDownIcon size="sm" />} {up ? "Up" : "Down"} {formatPercent(Math.abs(delta))}
         </span>
       );
     }

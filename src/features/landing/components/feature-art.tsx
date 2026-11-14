@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { MOTION_OK, gsap, useGSAP, useScrollPlugins } from "../gsap";
 import { useNearViewport } from "../use-near-viewport";
+import { ArrowUpIcon } from "@/components/ui/icons";
 
 /**
  * Small illustrations for the feature sections, built with HTML/CSS (no images)
@@ -289,7 +290,7 @@ export function ReportsArt() {
             $4,812.50
           </p>
         </div>
-        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800 dark:bg-green-900 dark:text-green-100">▲ 12%</span>
+        <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800 dark:bg-green-900 dark:text-green-100"><ArrowUpIcon size="xs" /> 12%</span>
       </div>
       <div className="mt-4 flex h-28 items-end gap-1.5">
         {COLUMNS.map((h, i) => (

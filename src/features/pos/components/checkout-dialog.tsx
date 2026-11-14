@@ -5,6 +5,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/money";
 import { type PaymentLine, type PaymentMethod, paymentSummary } from "../calc";
+import { XMarkIcon } from "@/components/ui/icons";
 
 /** Payment rows as typed (strings), converted when checking or sending. */
 export type PaymentDraft = { method: PaymentMethod; amount: string; tendered: string };
@@ -137,7 +138,7 @@ export function CheckoutDialog({ totalCents, currency, payments, onPaymentsChang
               <div className="pb-1">
                 {payments.length > 1 ? (
                   <Button type="button" variant="ghost" aria-label={`Remove payment ${index + 1}`} onClick={() => onPaymentsChange(payments.filter((_, i) => i !== index))}>
-                    ✕
+                    <XMarkIcon size="sm" />
                   </Button>
                 ) : null}
               </div>

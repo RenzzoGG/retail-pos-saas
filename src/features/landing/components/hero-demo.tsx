@@ -3,6 +3,7 @@
 import { useReducer, useRef, useState } from "react";
 import { DEMO_SCRIPT, INITIAL_DEMO, type DemoLine, demoReducer, formatUsd, productBySku } from "../demo-cart";
 import { MOTION_OK, REDUCED, gsap, prefersReducedMotion, useGSAP } from "../gsap";
+import { CheckIcon } from "@/components/ui/icons";
 
 /**
  * The hero's living register. Two layers work together:
@@ -147,7 +148,13 @@ export function HeroDemo() {
                 data-charge
                 className={`mt-3 rounded-md px-3 py-2 text-center text-sm font-semibold text-white ${paid ? "bg-green-600" : "bg-indigo-600"}`}
               >
-                {paid ? "Paid ✓" : "Charge  F8"}
+                {paid ? (
+                  <span className="inline-flex items-center gap-1">
+                    Paid <CheckIcon size="sm" />
+                  </span>
+                ) : (
+                  "Charge  F8"
+                )}
               </div>
               {paid ? <PaidNote change={state.changeCents} number={state.saleNumber} /> : null}
             </div>

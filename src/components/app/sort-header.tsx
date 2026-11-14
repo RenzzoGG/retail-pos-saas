@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronDownIcon, ChevronUpDownIcon, ChevronUpIcon } from "@/components/ui/icons";
 
 type Props = {
   label: string;
@@ -24,9 +25,15 @@ export function SortHeader({ label, column, currentSort, currentDir, hrefFor, al
         className="inline-flex items-center gap-1 rounded hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
       >
         {label}
-        <span aria-hidden="true" className="text-xs">
-          {active ? (currentDir === "asc" ? "▲" : "▼") : "↕"}
-        </span>
+        {active ? (
+          currentDir === "asc" ? (
+            <ChevronUpIcon size="sm" />
+          ) : (
+            <ChevronDownIcon size="sm" />
+          )
+        ) : (
+          <ChevronUpDownIcon size="sm" className="text-slate-400 dark:text-slate-500" />
+        )}
         <span className="sr-only">{active ? `, sorted ${currentDir === "asc" ? "ascending" : "descending"}` : ", sortable"}</span>
       </Link>
     </th>

@@ -36,7 +36,7 @@ test("cashier sells to a new customer and downloads the ticket; admin returns pa
     await cashier.keyboard.press("Enter");
   }
   await expect(cashier.getByTestId("pos-total")).toHaveText("$39.97");
-  await cashier.getByRole("button", { name: "+ New customer" }).click();
+  await cashier.getByRole("button", { name: "New customer", exact: true }).click();
   const newCustomer = cashier.getByRole("dialog", { name: "New customer" });
   await newCustomer.getByLabel("Name").fill(customerName);
   await newCustomer.getByLabel("Phone (optional)").fill("+1 555 0199");

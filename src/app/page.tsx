@@ -7,6 +7,7 @@ import { ImportArt, ReceiptArt, ReportsArt, ScanArt, StockArt } from "@/features
 import { HeroDemo } from "@/features/landing/components/hero-demo";
 import { ScrollReveals } from "@/features/landing/components/scroll-reveals";
 import { SecurityArt } from "@/features/landing/components/security-section";
+import { CheckIcon, PlusIcon } from "@/components/ui/icons";
 
 /**
  * Marketing landing (Server Component). All text, headings and links are in
@@ -210,7 +211,7 @@ export default function Home() {
                     <ul data-reveal className="mt-5 space-y-2 text-sm text-slate-700 dark:text-slate-300">
                       {f.points.map((p) => (
                         <li key={p} className="flex gap-2">
-                          <span aria-hidden="true" className="text-indigo-600 dark:text-indigo-400">✓</span>
+                          <CheckIcon className="mt-0.5 text-indigo-600 dark:text-indigo-400" />
                           {p}
                         </li>
                       ))}
@@ -268,7 +269,7 @@ export default function Home() {
                 <ul className="mt-6 space-y-2 text-sm text-slate-700 dark:text-slate-300">
                   {["Point of sale with barcode scanning", "Inventory, stock entries and Excel import", "Receipts, returns and customers", "Dashboard, reports and Excel export", "Team with owner, admin and cashier roles"].map((p) => (
                     <li key={p} className="flex gap-2">
-                      <span aria-hidden="true" className="text-indigo-600 dark:text-indigo-400">✓</span>
+                      <CheckIcon className="mt-0.5 text-indigo-600 dark:text-indigo-400" />
                       {p}
                     </li>
                   ))}
@@ -296,7 +297,7 @@ export default function Home() {
                   <details key={item.q} data-reveal className="group rounded-xl border border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium focus-visible:outline-2 focus-visible:outline-indigo-500">
                       {item.q}
-                      <span aria-hidden="true" className="text-xl text-slate-500 transition-transform group-open:rotate-45">+</span>
+                      <PlusIcon className="text-slate-500 transition-transform group-open:rotate-45 motion-reduce:transition-none" />
                     </summary>
                     <div className="mt-3 text-sm text-slate-700 dark:text-slate-300">{item.a}</div>
                   </details>

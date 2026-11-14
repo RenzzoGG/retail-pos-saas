@@ -12,6 +12,7 @@ import { METHOD_LABELS } from "../labels";
 import type { CustomerOption, SaleDetail, SaleProduct } from "../service";
 import { CheckoutDialog, type PaymentDraft } from "./checkout-dialog";
 import { NewCustomerDialog } from "./new-customer-dialog";
+import { PlusIcon, XMarkIcon } from "@/components/ui/icons";
 
 export type PosSettings = {
   storeId: string;
@@ -414,7 +415,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
                           aria-label={`Remove ${item.name}`}
                           onClick={() => changeCart(() => setItems((cur) => cur.filter((i) => i.productId !== item.productId)))}
                         >
-                          ✕
+                          <XMarkIcon size="sm" />
                         </Button>
                       </td>
                     </tr>
@@ -439,7 +440,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
                 {customer.detail ? <span className="block text-xs text-slate-500">{customer.detail}</span> : null}
               </span>
               <Button variant="ghost" aria-label={`Remove customer ${customer.name}`} onClick={() => changeCart(() => setCustomer(null))}>
-                ✕
+                <XMarkIcon size="sm" />
               </Button>
             </div>
           ) : (
@@ -455,7 +456,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
                 className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900"
               />
               <Button type="button" variant="ghost" className="px-0 text-sm" onClick={() => setCreatingCustomer(true)}>
-                + New customer
+                <PlusIcon size="sm" /> New customer
               </Button>
               {visibleCustomers.length > 0 ? (
                 <ul aria-label="Customer suggestions" className="divide-y divide-slate-200 rounded-md border border-slate-200 dark:divide-slate-800 dark:border-slate-700">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { NavItem } from "@/lib/permissions";
+import { ChevronDownIcon, ChevronUpIcon } from "@/components/ui/icons";
 
 /** Navigation links; collapses behind a button on small screens. */
 export function SidebarNav({ items }: { items: NavItem[] }) {
@@ -22,7 +23,7 @@ export function SidebarNav({ items }: { items: NavItem[] }) {
         onClick={() => setOpen((v) => !v)}
       >
         Menu
-        <span aria-hidden="true">{open ? "▲" : "▼"}</span>
+        {open ? <ChevronUpIcon /> : <ChevronDownIcon />}
       </button>
       <ul id="main-nav-list" className={`${open ? "block" : "hidden"} space-y-1 md:block`}>
         {items.map((item) => {
