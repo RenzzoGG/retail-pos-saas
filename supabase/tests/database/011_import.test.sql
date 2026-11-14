@@ -1,4 +1,6 @@
 -- Phase 5: import_products (atomic product import) and import_batches.
+-- Checks made as postgres (no RLS) are scoped to this test's store: other
+-- tests (E2E, integration) leave products and imports in the local database.
 begin;
 \ir _helpers.psql
 select plan(27);
@@ -68,7 +70,7 @@ select throws_ok(
 select tests.reset_role();
 select is((select count(*)::int from public.products where store_id = '29000000-0000-4000-8000-000000000001'), 1,
   'failed imports saved no products');
-select is((select count(*)::int from public.import_batches), 0, 'failed imports left no import record');
+select is((select count(*)::int from public.import_batches where store_id = '29000000-0000-4000-8000-000000000001'), 0, 'failed imports left no import record');
 
 -- ------------------------------------------------------- successful import
 -- 2 new products (one with stock), 1 update of EXIST-1 (+10 units at 6.00), 1 row skipped by the app.
@@ -83,20 +85,20 @@ select tests.reset_role();
 
 select is((select count(*)::int from public.products where store_id = '29000000-0000-4000-8000-000000000001' and deleted_at is null), 3,
   'two products created, one updated');
-select is((select name || '|' || sale_price || '|' || low_stock_threshold from public.products where sku = 'EXIST-1'),
+select is((select name || '|' || sale_price || '|' || low_stock_threshold from public.products where store_id = '29000000-0000-4000-8000-000000000001' and sku = 'EXIST-1'),
   'Existing renamed|11.00|2', 'the existing product was updated');
-select is((select stock from public.products where sku = 'IMP-1'), 20, 'initial stock arrived through a stock entry');
-select is((select stock from public.products where sku = 'IMP-2'), 0, 'rows without stock start at 0');
-select is((select stock from public.products where sku = 'EXIST-1'), 20, 'imported stock is added to the current stock');
-select is((select cost_price from public.product_costs c join public.products p on p.id = c.product_id where p.sku = 'EXIST-1'),
+select is((select stock from public.products where store_id = '29000000-0000-4000-8000-000000000001' and sku = 'IMP-1'), 20, 'initial stock arrived through a stock entry');
+select is((select stock from public.products where store_id = '29000000-0000-4000-8000-000000000001' and sku = 'IMP-2'), 0, 'rows without stock start at 0');
+select is((select stock from public.products where store_id = '29000000-0000-4000-8000-000000000001' and sku = 'EXIST-1'), 20, 'imported stock is added to the current stock');
+select is((select cost_price from public.product_costs c join public.products p on p.id = c.product_id where p.store_id = '29000000-0000-4000-8000-000000000001' and p.sku = 'EXIST-1'),
   5.00::numeric, 'weighted average cost: (10*4 + 10*6) / 20 = 5.00');
-select is((select cost_price from public.product_costs c join public.products p on p.id = c.product_id where p.sku = 'IMP-1'),
+select is((select cost_price from public.product_costs c join public.products p on p.id = c.product_id where p.store_id = '29000000-0000-4000-8000-000000000001' and p.sku = 'IMP-1'),
   5.25::numeric, 'new product cost = its unit cost');
 select is((select source || '|' || note from public.stock_entries where id = (select stock_entry_id from public.import_batches where id = (select id from batch))),
   'import|Import: catalog.xlsx', 'one stock entry marked as import');
 select is((select created_count || '/' || updated_count || '/' || skipped_count || '/' || total_rows from public.import_batches where id = (select id from batch)),
   '2/1/1/4', 'import record keeps created/updated/skipped/total');
-select is((select count(*)::int from public.activity_log where table_name = 'import_batches' and action = 'insert'
+select is((select count(*)::int from public.activity_log where store_id = '29000000-0000-4000-8000-000000000001' and table_name = 'import_batches' and action = 'insert'
            and actor_id = '19000000-0000-4000-8000-000000000001'), 1, 'the import appears in the activity log');
 select is((select count(*)::int from public.stock_entries where source = 'manual'
            and store_id = '29000000-0000-4000-8000-000000000001'), 1, 'create_stock_entry still records manual entries');
