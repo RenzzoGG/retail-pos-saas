@@ -94,3 +94,18 @@ test("sale discount: disabled with an empty cart, never larger than the subtotal
   await expect(saleDiscount).toHaveValue("");
   await expect(page.getByRole("alert").filter({ hasText: /discount/i })).toHaveCount(0);
 });
+
+test("keyboard shortcut hints are hidden on a touch phone", async ({ page }) => {
+  await openPosAsCashier(page);
+  await page.getByLabel(/Scan or search/).fill("2000000000015");
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("cart-line-CBL-USBC-1M")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Keyboard shortcuts" })).toBeHidden();
+  const kbds = page.locator("kbd");
+  expect(await kbds.count()).toBeGreaterThan(0);
+  for (const kbd of await kbds.all()) await expect(kbd).toBeHidden();
+  // The labels and buttons read cleanly without the key names.
+  await expect(page.getByRole("button", { name: "Charge $9.99", exact: true })).toBeVisible();
+  // Accessible name (hidden <kbd> excluded), not the raw label text.
+  await expect(page.getByRole("searchbox", { name: "Customer (optional)", exact: true })).toBeVisible();
+});

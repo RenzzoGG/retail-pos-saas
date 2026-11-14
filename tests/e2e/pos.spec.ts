@@ -104,9 +104,13 @@ test("cashier sells with scanner, discounts and a split payment; double click = 
 test("keyboard flow: new sale with Enter and the cart survives a reload", async ({ browser }) => {
   const cashier = await signInAs(browser, DEMO.cashier);
   await cashier.goto("/app/pos", { waitUntil: "networkidle" });
+  // Desktop (mouse + keyboard): the shortcut hints are shown.
+  await expect(cashier.getByRole("region", { name: "Keyboard shortcuts" })).toBeVisible();
+  await expect(cashier.locator("kbd", { hasText: "F2" }).first()).toBeVisible();
   await cashier.keyboard.type(PRODUCTS.cable.barcode, { delay: 2 });
   await cashier.keyboard.press("Enter");
   await expect(cashier.getByTestId(`cart-line-${PRODUCTS.cable.sku}`)).toBeVisible();
+  await expect(cashier.getByRole("button", { name: /^Charge/ }).locator("kbd")).toBeVisible();
 
   // A scan that lands in a quantity field by mistake is treated as a scan.
   const cableQty = cashier.getByTestId(`cart-line-${PRODUCTS.cable.sku}`).getByLabel(/^Quantity of/);

@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Devices with a mouse/trackpad (and so, almost always, a physical keyboard).
+   POS shortcut hints (F2, F8…) only show there: on phones and tablets they do nothing. */
+@custom-variant keyboard (@media (hover: hover) and (pointer: fine));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

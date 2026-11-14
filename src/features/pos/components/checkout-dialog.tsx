@@ -211,10 +211,10 @@ export function CheckoutDialog({ totalCents, currency, payments, onPaymentsChang
 
         <div className="flex flex-wrap justify-end gap-3">
           <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
-            Back to cart <kbd className="ml-1 rounded border px-1 text-xs">Esc</kbd>
+            Back to cart <kbd className="hidden keyboard:inline ml-1 rounded border px-1 text-xs">Esc</kbd>
           </Button>
           <Button type="submit" disabled={!canConfirm} aria-disabled={!canConfirm} className="px-6">
-            {submitting ? "Registering…" : "Complete sale"} <kbd className="ml-1 rounded border border-white/40 px-1 text-xs">F9</kbd>
+            {submitting ? "Registering…" : "Complete sale"} <kbd className="hidden keyboard:inline ml-1 rounded border border-white/40 px-1 text-xs">F9</kbd>
           </Button>
         </div>
       </form>

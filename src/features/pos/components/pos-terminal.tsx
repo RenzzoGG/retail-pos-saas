@@ -302,7 +302,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
       <section aria-labelledby="cart-heading" className="min-w-0 space-y-4">
         <div className="space-y-1">
           <label htmlFor="pos-scan" className="block text-sm font-medium text-slate-800 dark:text-slate-200">
-            Scan or search <kbd className="ml-1 rounded border px-1 text-xs text-slate-500">F2</kbd>
+            Scan or search <kbd className="hidden keyboard:inline ml-1 rounded border px-1 text-xs text-slate-500">F2</kbd>
           </label>
           <input
             ref={scanRef}
@@ -461,7 +461,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
       <aside aria-label="Sale summary" className="min-w-0 space-y-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
         <div className="space-y-1">
           <label htmlFor="pos-customer" className="block text-sm font-medium text-slate-800 dark:text-slate-200">
-            Customer (optional) <kbd className="ml-1 rounded border px-1 text-xs text-slate-500">F4</kbd>
+            Customer (optional) <kbd className="hidden keyboard:inline ml-1 rounded border px-1 text-xs text-slate-500">F4</kbd>
           </label>
           {customer ? (
             <div className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-sm dark:border-slate-700">
@@ -571,7 +571,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
         ) : null}
 
         <Button className="w-full py-3 text-base" onClick={openCheckout} disabled={!canCharge}>
-          Charge {money(totals.totalCents)} <kbd className="ml-2 rounded border border-white/40 px-1 text-xs">F8</kbd>
+          Charge {money(totals.totalCents)} <kbd className="hidden keyboard:inline ml-2 rounded border border-white/40 px-1 text-xs">F8</kbd>
         </Button>
       </aside>
 
@@ -715,7 +715,7 @@ function ShortcutBar() {
     ["Alt+Shift+⌫", "Clear sale"],
   ];
   return (
-    <section aria-label="Keyboard shortcuts" className="lg:col-span-2">
+    <section aria-label="Keyboard shortcuts" className="hidden keyboard:block lg:col-span-2">
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
         {shortcuts.map(([key, label]) => (
           <li key={key}>
@@ -760,7 +760,7 @@ function SaleCompleted({ sale, currency, onNewSale }: { sale: SaleDetail; curren
       </dl>
       <div className="flex flex-wrap justify-center gap-3">
         <Button autoFocus onClick={onNewSale} className="px-6 py-3 text-base">
-          New sale <kbd className="ml-2 rounded border border-white/40 px-1 text-xs">Enter</kbd>
+          New sale <kbd className="hidden keyboard:inline ml-2 rounded border border-white/40 px-1 text-xs">Enter</kbd>
         </Button>
         <a href={`/app/sales/${sale.id}/receipt`} target="_blank" rel="noopener" className={buttonClasses("secondary", "py-3")}>
           Print receipt
