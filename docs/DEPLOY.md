@@ -10,7 +10,7 @@ Arquitectura de producción:
 Navegador ──https──▶ Cloudflare (proxy, SSL Full) ──https──▶ Railway (contenedor Docker, Next.js standalone)
                                                                 │
                                          supabase-js (RLS) ─────┼──▶ Supabase Cloud (Postgres, Auth)
-                                                                ├──▶ Resend (SMTP: invitaciones)
+                                                                ├──▶ Resend (API HTTPS: invitaciones)
 Stripe (modo prueba) ──webhook firmado──▶ /api/stripe/webhook ──┘
 Supabase Auth ──SMTP──▶ Resend (confirmación de registro, reset de contraseña)
 pg_cron (dentro de Supabase) ──cada noche──▶ public.reset_demo_store()
@@ -78,7 +78,25 @@ correo:
 | Correo | Quién lo envía | Configuración |
 | --- | --- | --- |
 | Confirmación de registro, reset de contraseña | Supabase Auth | SMTP personalizado en Supabase (paso 3) |
-| Invitaciones al equipo | La app (nodemailer) | Variables `SMTP_*` en Railway (paso 4) |
+| Invitaciones al equipo | La app (API HTTPS de Resend) | `RESEND_API_KEY` y `EMAIL_FROM` en Railway (paso 4) |
+
+> **Railway bloquea el SMTP saliente.** En los planes Free, Trial y Hobby, Railway descarta sin respuesta
+> las conexiones a los puertos 25, 465, 587 y 2525. Por eso la app **no** usa SMTP en producción: con
+> `RESEND_API_KEY` envía por la API HTTPS de Resend (`POST https://api.resend.com/emails`, puerto 443).
+> Sin esa variable usa SMTP con nodemailer, que es lo que pasa en local con Mailpit y en los tests.
+> Los correos de Supabase Auth no se ven afectados: los envía Supabase desde sus servidores, por SMTP
+> hacia Resend.
+>
+> Síntoma si falta `RESEND_API_KEY` en Railway: al invitar, la app intenta SMTP, la conexión no responde
+> y a los 10 s la invitación queda creada con el aviso *"Invitation created, but the email couldn't be
+> sent. Try resending."*.
+
+**Si el correo de una invitación falla** (proveedor caído, dominio sin verificar, timeout de 10 s): la
+invitación **queda creada** y aparece en *Pending invitations* con el botón **Resend**. Resend la vuelve a
+crear con un enlace nuevo (7 días más) y el anterior deja de servir, porque la base solo guarda el hash del
+token y no se puede reenviar el mismo enlace. Puede usarlo quien puede revocarla (owner; admin solo para
+cajeros) y está bloqueado en la tienda demo, igual que invitar. En los logs de Railway queda una línea
+`Invitation email not sent: …` con el código HTTP de Resend o `timeout`, nunca la API key.
 
 Pasos:
 
@@ -88,9 +106,10 @@ Pasos:
    nube gris (DNS only)**: los registros de correo nunca van con proxy. Opcional y recomendado: un TXT
    `_dmarc` con `v=DMARC1; p=none;`.
 3. Espera a que Resend marque el dominio como **Verified**.
-4. **API Keys → Create API key**, con permiso *Sending access* limitado a ese dominio. Esa clave es la
-   **contraseña SMTP** y es **secreta**.
-5. Datos SMTP de Resend (los usarás en los pasos 3 y 4):
+4. **API Keys → Create API key**, con permiso *Sending access* limitado a ese dominio. Es **secreta**: la
+   usan la app (`RESEND_API_KEY`, paso 4) y Supabase (contraseña SMTP, paso 3). Si prefieres, crea dos
+   claves para poder revocarlas por separado.
+5. Datos SMTP de Resend (solo para Supabase Auth, paso 3; la app no usa SMTP en producción):
    - Host: `smtp.resend.com`
    - Puerto: `465`. Es TLS implícito y la app activa `secure` automáticamente con ese puerto.
    - Usuario: `resend`
@@ -159,7 +178,7 @@ En el panel del proyecto:
      declara un `ARG` con su nombre. Si cambias una, hay que **volver a desplegar** (Deployments →
      Redeploy).
    - Marca como *sealed* las secretas (`SUPABASE_SECRET_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` y
-     `SMTP_PASS`): ni tú las vuelves a ver en el panel.
+     `RESEND_API_KEY`): ni tú las vuelves a ver en el panel.
 3. **Settings → Networking → Generate Domain**: crea `<servicio>.up.railway.app`. Usa el puerto `3000`,
    porque fijamos `PORT=3000` en las variables. Con eso ya puedes probar:
    `curl https://<servicio>.up.railway.app/api/health` → `{"status":"ok"}`.
@@ -303,10 +322,7 @@ así que cambiarla requiere redesplegar.
 | `STRIPE_WEBHOOK_SECRET` | `whsec_…` del endpoint de producción | Verifica la firma de cada evento del webhook | **Sí** | Runtime |
 | `STRIPE_PRICE_ID` | `price_…` | Precio del plan mensual de 19 USD | No | Runtime |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `pk_test_…` (opcional) | No se usa todavía (Checkout está alojado en Stripe) | No | Build |
-| `SMTP_HOST` | `smtp.resend.com` | Servidor SMTP de las invitaciones | No | Runtime |
-| `SMTP_PORT` | `465` | Puerto (465 = TLS implícito) | No | Runtime |
-| `SMTP_USER` | `resend` | Usuario SMTP | No | Runtime |
-| `SMTP_PASS` | API key de Resend (`re_…`) | Contraseña SMTP | **Sí** | Runtime |
+| `RESEND_API_KEY` | API key de Resend (`re_…`), *sealed* | Envía las invitaciones por la API HTTPS de Resend (Railway bloquea SMTP) | **Sí** | Runtime |
 | `EMAIL_FROM` | `Stocktill <no-reply@renzzogg.com>` | Remitente de las invitaciones (dominio verificado en Resend) | No | Runtime |
 | `PORT` | `3000` | Puerto en el que escucha `server.js`; debe coincidir con el *target port* del dominio | No | Runtime |
 
@@ -315,6 +331,8 @@ No se configuran en Railway:
 - `DATABASE_URL`: solo lo usa `drizzle-kit` en local. Las migraciones de producción se aplican con
   `supabase db push`.
 - `HOSTNAME`: el Dockerfile ya lo fija a `0.0.0.0`.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`: solo para local (Mailpit) y los tests. Con
+  `RESEND_API_KEY` la app las ignora, y Railway bloquea SMTP de todos modos. Si las tenías, bórralas.
 - `NODE_ENV`: el Dockerfile ya lo fija a `production`.
 
 Solo en **tu** `.env.production.local` (paso 7, nunca en Railway ni en git): `SUPABASE_URL`,
@@ -389,3 +407,4 @@ Reglas que sigue el diseño (y que conviene respetar al editarlo):
 | *Try as …* dice que la demo no está disponible | No se corrió `demo-provision.mjs` o la contraseña no coincide | Paso 7.3, con la misma contraseña que `NEXT_PUBLIC_DEMO_PASSWORD` |
 | Todo da error de conexión de repente | Proyecto de Supabase pausado por inactividad | Panel de Supabase → **Restore project** |
 | Correos de registro que no llegan | SMTP sin configurar o dominio sin verificar | Pasos 2 y 3.4; revisa Resend → Logs |
+| Invitar se queda en "Sending…" o dice "the email couldn't be sent" | Falta `RESEND_API_KEY` (la app intenta SMTP y Railway lo bloquea), clave revocada o `EMAIL_FROM` de un dominio sin verificar | Pon `RESEND_API_KEY` (*sealed*) y revisa `EMAIL_FROM`; el log dice `HTTP 4xx (…)` o `timeout`. Luego, el botón **Resend** de *Pending invitations* |

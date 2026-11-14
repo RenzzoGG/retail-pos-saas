@@ -58,7 +58,7 @@ export default async function TeamPage() {
           ) : (
             <ul className="divide-y divide-slate-200 dark:divide-slate-800">
               {invitations.data.map((inv) => (
-                <InvitationRow key={inv.id} invitation={inv} canRevoke={canManageRole(store.role, inv.role)} />
+                <InvitationRow key={inv.email} invitation={inv} canManage={canManageRole(store.role, inv.role)} />
               ))}
             </ul>
           )}

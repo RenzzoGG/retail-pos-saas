@@ -4,11 +4,16 @@ import { useActionState } from "react";
 import { SubmitButton } from "@/components/ui/button";
 import { initialFormState } from "@/lib/forms/state";
 import { ROLE_LABELS } from "@/lib/permissions";
-import { revokeInvitationAction } from "../actions";
+import { resendInvitationAction, revokeInvitationAction } from "../actions";
 import type { Invitation } from "../service";
 
-export function InvitationRow({ invitation, canRevoke }: { invitation: Invitation; canRevoke: boolean }) {
-  const [state, action] = useActionState(revokeInvitationAction, initialFormState);
+/**
+ * One pending or expired invitation. canManage (owner, or admin for cashier
+ * invitations) shows Resend and Revoke; the server and RLS check it again.
+ */
+export function InvitationRow({ invitation, canManage }: { invitation: Invitation; canManage: boolean }) {
+  const [revokeState, revoke] = useActionState(revokeInvitationAction, initialFormState);
+  const [resendState, resend] = useActionState(resendInvitationAction, initialFormState);
   const expires = new Date(invitation.expiresAt).toLocaleDateString("en-US", { dateStyle: "medium" });
   return (
     <li className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -22,19 +27,38 @@ export function InvitationRow({ invitation, canRevoke }: { invitation: Invitatio
             <>Pending · expires {expires}</>
           )}
         </p>
-        {state.status === "error" ? (
-          <p role="alert" className="text-sm text-red-600">
-            {state.message}
+        {[resendState, revokeState].map((state, i) =>
+          state.status === "error" ? (
+            <p key={i} role="alert" className="text-sm text-red-600">
+              {state.message}
+            </p>
+          ) : null,
+        )}
+        {resendState.status === "success" ? (
+          <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">
+            {resendState.message}
           </p>
         ) : null}
       </div>
-      {canRevoke ? (
-        <form action={action}>
-          <input type="hidden" name="invitationId" value={invitation.id} />
-          <SubmitButton variant="secondary" pendingText="Revoking…" aria-label={`Revoke invitation for ${invitation.email}`}>
-            Revoke
-          </SubmitButton>
-        </form>
+      {canManage ? (
+        <div className="flex gap-2">
+          <form action={resend}>
+            <input type="hidden" name="invitationId" value={invitation.id} />
+            <SubmitButton
+              variant="secondary"
+              pendingText="Resending…"
+              aria-label={`Resend invitation to ${invitation.email}`}
+            >
+              Resend
+            </SubmitButton>
+          </form>
+          <form action={revoke}>
+            <input type="hidden" name="invitationId" value={invitation.id} />
+            <SubmitButton variant="secondary" pendingText="Revoking…" aria-label={`Revoke invitation for ${invitation.email}`}>
+              Revoke
+            </SubmitButton>
+          </form>
+        </div>
       ) : null}
     </li>
   );

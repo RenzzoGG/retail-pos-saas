@@ -8,55 +8,111 @@ import {
   requireRole,
   requireUser,
 } from "@/lib/auth/dal";
+import { dbErrorMessage } from "@/lib/db-errors";
+import { EmailDeliveryError } from "@/lib/email/delivery";
 import { sendEmail } from "@/lib/email/mailer";
 import { buildInvitationEmail } from "@/lib/email/templates";
 import { type FormState, formValues, zodFieldErrors } from "@/lib/forms/state";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
-import { changeRoleSchema, invitationIdSchema, inviteSchema, memberIdSchema } from "./schemas";
+import { EMAIL_NOT_SENT_MESSAGE } from "./messages";
+import { type InviteInput, changeRoleSchema, invitationIdSchema, inviteSchema, memberIdSchema } from "./schemas";
 import {
   type Actor,
   acceptInvitation,
   changeMemberRole,
   createInvitation,
+  getPendingInvitation,
   removeMember,
   revokeInvitation,
 } from "./service";
 
-async function managerActor(): Promise<{ actor: Actor; storeName: string }> {
+async function managerActor(): Promise<{ actor: Actor; storeName: string; isDemo: boolean }> {
   const { user, store } = await requireRole(["owner", "admin"]);
-  return { actor: { userId: user.id, storeId: store.storeId, role: store.role }, storeName: store.storeName };
+  return {
+    actor: { userId: user.id, storeId: store.storeId, role: store.role },
+    storeName: store.storeName,
+    isDemo: store.isDemo,
+  };
 }
 
-export async function inviteMemberAction(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { actor, storeName } = await managerActor();
-  const values = formValues(formData, ["email", "role"]);
-  const parsed = inviteSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { status: "error", fieldErrors: zodFieldErrors(parsed.error), values };
-
+/**
+ * Creates (or replaces) the invitation, then emails the link.
+ *
+ * The invitation is saved BEFORE the email is sent and stays when sending
+ * fails: it shows in "Pending invitations" with a Resend button, and the
+ * user gets EMAIL_NOT_SENT_MESSAGE instead of a spinner (sendEmail gives up
+ * after EMAIL_SEND_TIMEOUT_MS). The link only exists in the email (the
+ * database keeps its hash), so resending issues a new link and the old one
+ * stops working.
+ */
+async function inviteAndEmail(
+  actor: Actor,
+  storeName: string,
+  input: InviteInput,
+): Promise<{ ok: true } | { ok: false; state: FormState }> {
   const db = await createClient();
-  const result = await createInvitation(db, actor, parsed.data);
-  if (!result.ok) return { status: "error", message: result.error, values };
+  const result = await createInvitation(db, actor, input);
+  if (!result.ok) return { ok: false, state: { status: "error", message: result.error } };
+  revalidatePath("/app/team");
 
   const { data: me } = await db.from("profiles").select("full_name, email").eq("id", actor.userId).maybeSingle();
   const email = buildInvitationEmail({
     storeName,
     inviterName: me?.full_name || me?.email || "A teammate",
-    role: parsed.data.role,
+    role: input.role,
     acceptUrl: `${getSiteUrl()}/invite/${result.data.token}`,
     expiresAt: result.data.expiresAt,
   });
-
-  revalidatePath("/app/team");
   try {
-    await sendEmail(parsed.data.email, email);
-  } catch {
-    return {
-      status: "error",
-      message: "The invitation was created, but the email could not be sent. Try resending it.",
-    };
+    await sendEmail(input.email, email);
+  } catch (error) {
+    // EmailDeliveryError messages carry no credentials; anything else is reduced to its name.
+    console.error(
+      "Invitation email not sent:",
+      error instanceof EmailDeliveryError ? error.message : (error as Error)?.name ?? "unknown error",
+    );
+    return { ok: false, state: { status: "error", message: EMAIL_NOT_SENT_MESSAGE } };
+  }
+  return { ok: true };
+}
+
+const DEMO_LOCKED: FormState = { status: "error", message: dbErrorMessage({ message: "demo_locked" }) };
+
+export async function inviteMemberAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { actor, storeName, isDemo } = await managerActor();
+  const values = formValues(formData, ["email", "role"]);
+  const parsed = inviteSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { status: "error", fieldErrors: zodFieldErrors(parsed.error), values };
+  // The database refuses it too (invitations_demo_guard); checking here first
+  // avoids replacing an existing invitation before that insert fails.
+  if (isDemo) return { ...DEMO_LOCKED, values };
+
+  const sent = await inviteAndEmail(actor, storeName, parsed.data);
+  if (!sent.ok) {
+    // Email failure: the invitation exists, so the form starts empty again.
+    return sent.state.message === EMAIL_NOT_SENT_MESSAGE ? sent.state : { ...sent.state, values };
   }
   return { status: "success", message: `Invitation sent to ${parsed.data.email}.` };
+}
+
+/**
+ * Sends a pending (or expired) invitation again, with a new link valid for
+ * another 7 days. Same rules as inviting: owner/admin, only roles they can
+ * manage (RLS on invitations), never in the demo.
+ */
+export async function resendInvitationAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { actor, storeName, isDemo } = await managerActor();
+  const parsed = invitationIdSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { status: "error", message: "Invalid invitation." };
+  if (isDemo) return DEMO_LOCKED;
+
+  const invitation = await getPendingInvitation(await createClient(), actor, parsed.data.invitationId);
+  if (!invitation.ok) return { status: "error", message: invitation.error };
+
+  const sent = await inviteAndEmail(actor, storeName, { email: invitation.data.email, role: invitation.data.role });
+  if (!sent.ok) return sent.state;
+  return { status: "success", message: `Invitation sent again to ${invitation.data.email}.` };
 }
 
 export async function changeRoleAction(_prev: FormState, formData: FormData): Promise<FormState> {

@@ -54,26 +54,45 @@ export type SmtpConfig = {
   from: string;
 };
 
+export type EmailConfig =
+  | { provider: "resend"; apiKey: string; from: string }
+  | ({ provider: "smtp" } & SmtpConfig);
+
+const DEFAULT_FROM = "Stocktill <no-reply@stocktill.test>";
+
 /**
- * SMTP settings for app emails (invitations). Outside production, missing
- * values default to the local Mailpit SMTP port exposed by the Supabase CLI
- * (supabase/config.toml -> [local_smtp] smtp_port = 54325), so `npm run dev`
- * works without extra configuration. In production they are required.
+ * SMTP settings for app emails (invitations) when Resend isn't configured.
+ * Outside production, missing values default to the local Mailpit SMTP port
+ * exposed by the Supabase CLI (supabase/config.toml -> [local_smtp]
+ * smtp_port = 54325), so `npm run dev` works without extra configuration.
  */
 export function getSmtpConfig(): SmtpConfig {
   const isProduction = process.env.NODE_ENV === "production";
   const host = process.env.SMTP_HOST || (isProduction ? "" : "127.0.0.1");
   const port = Number(process.env.SMTP_PORT || (isProduction ? "" : "54325"));
   if (!host || !Number.isInteger(port) || port <= 0) {
-    throw new Error("Missing SMTP_HOST / SMTP_PORT. See .env.example.");
+    throw new Error("Missing SMTP_HOST / SMTP_PORT (or RESEND_API_KEY). See .env.example.");
   }
   return {
     host,
     port,
     user: process.env.SMTP_USER || undefined,
     pass: process.env.SMTP_PASS || undefined,
-    from: process.env.EMAIL_FROM || "Stocktill <no-reply@stocktill.test>",
+    from: process.env.EMAIL_FROM || DEFAULT_FROM,
   };
+}
+
+/**
+ * How the app sends its own emails:
+ * - RESEND_API_KEY set: Resend's HTTPS API. Production uses this, because
+ *   Railway blocks outbound SMTP (ports 25, 465, 587, 2525) on the Free, Trial
+ *   and Hobby plans: connections are dropped without an answer.
+ * - otherwise: SMTP with nodemailer (local Mailpit, tests).
+ */
+export function getEmailConfig(): EmailConfig {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (apiKey) return { provider: "resend", apiKey, from: process.env.EMAIL_FROM || DEFAULT_FROM };
+  return { provider: "smtp", ...getSmtpConfig() };
 }
 
 /**

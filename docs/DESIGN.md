@@ -331,9 +331,11 @@ Cambiar de tienda = Server Action `switchStore`, que también valida la membres�
   (`supabase/templates/*.html`) cuyo enlace va a `/auth/confirm?token_hash=…&type=…`. Esa ruta llama
   `verifyOtp` y crea la sesión. Funciona aunque el correo se abra en otro navegador (el flujo PKCE con
   `code` exige el mismo navegador).
-- Invitaciones: las envía **la app** por SMTP con `nodemailer` (`src/lib/email`). En local,
-  Mailpit expone SMTP en `54325` (`[local_smtp] smtp_port`). En producción, cualquier proveedor SMTP vía
-  `SMTP_*`.
+- Invitaciones: las envía **la app** (`src/lib/email/mailer.ts`). Con `RESEND_API_KEY` usa la API HTTPS
+  de Resend (producción: Railway bloquea el SMTP saliente en los planes Free/Trial/Hobby); sin ella, SMTP
+  con `nodemailer` (en local, Mailpit en `54325`, `[local_smtp] smtp_port`). Todo envío se corta a los
+  10 s. Si el correo falla, la invitación queda creada y se puede reenviar desde *Pending invitations*
+  (nuevo enlace; el anterior deja de servir).
 - Redirecciones post-login/confirmación pasan por `safeNextPath` (solo rutas relativas del propio
   sitio: evita *open redirects*).
 

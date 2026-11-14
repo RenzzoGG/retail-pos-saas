@@ -129,6 +129,27 @@ export async function createInvitation(
   return ok({ id: data.id, token, expiresAt });
 }
 
+/** One not-yet-accepted invitation of the actor's store (to resend it). Owner/admin only. */
+export async function getPendingInvitation(
+  db: Db,
+  actor: Actor,
+  invitationId: string,
+): Promise<Result<{ email: string; role: Exclude<StoreRole, "owner"> }>> {
+  if (!isManager(actor.role)) return forbidden();
+  const { data, error } = await db
+    .from("invitations")
+    .select("email, role")
+    .eq("id", invitationId)
+    .eq("store_id", actor.storeId)
+    .is("accepted_at", null)
+    .maybeSingle();
+  if (error) return fail(error);
+  if (!data || data.role === "owner") {
+    return { ok: false, error: "That invitation no longer exists. Refresh the page.", code: "not_found" };
+  }
+  return ok({ email: data.email, role: data.role });
+}
+
 export async function revokeInvitation(db: Db, actor: Actor, invitationId: string): Promise<Result<null>> {
   if (!isManager(actor.role)) return forbidden();
   const { data, error } = await db

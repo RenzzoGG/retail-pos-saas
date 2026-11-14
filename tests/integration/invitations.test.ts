@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { acceptInvitation, createInvitation, previewInvitation, removeMember } from "@/features/team/service";
+import { acceptInvitation, createInvitation, getPendingInvitation, previewInvitation, removeMember } from "@/features/team/service";
 import type { Db } from "@/lib/services/result";
-import { OTHER_STORE_ID, USERS, actor, memberId, signInAs } from "./helpers";
+import { DEMO_STORE_ID, OTHER_STORE_ID, USERS, actor, memberId, signInAs } from "./helpers";
 
 /**
  * Full invitation round trip with real users: the Other Shop owner invites the
@@ -56,5 +56,48 @@ describe("invitation round trip", () => {
   it("the link cannot be used twice", async () => {
     const result = await acceptInvitation(cashier, token);
     expect(result).toMatchObject({ ok: false, code: "invitation_already_used" });
+  });
+});
+
+/**
+ * Resend (team page): the invitation is re-created with a new link. The old
+ * link stops working, only managers of the store can read it, and an admin
+ * can't resend an admin invitation (RLS).
+ */
+describe("resending an invitation", () => {
+  let owner: Db;
+  let admin: Db;
+  let otherOwner: Db;
+  const email = `resend-${Date.now()}@example.com`;
+
+  beforeAll(async () => {
+    [owner, admin, otherOwner] = await Promise.all([signInAs("owner"), signInAs("admin"), signInAs("otherOwner")]);
+  });
+
+  afterAll(async () => {
+    await owner.from("invitations").delete().eq("store_id", DEMO_STORE_ID).eq("email", email);
+  });
+
+  it("issues a new link and invalidates the old one", async () => {
+    const ownerActor = actor("owner", "owner");
+    const first = await createInvitation(owner, ownerActor, { email, role: "admin" });
+    if (!first.ok) throw new Error(first.error);
+
+    const pending = await getPendingInvitation(owner, ownerActor, first.data.id);
+    expect(pending).toEqual({ ok: true, data: { email, role: "admin" } });
+
+    const second = await createInvitation(owner, ownerActor, pending.ok ? pending.data : { email, role: "admin" });
+    if (!second.ok) throw new Error(second.error);
+    expect(second.data.token).not.toBe(first.data.token);
+
+    const { data: rows } = await owner.from("invitations").select("id").eq("store_id", DEMO_STORE_ID).eq("email", email);
+    expect(rows?.map((r) => r.id)).toEqual([second.data.id]);
+    expect(await previewInvitation(owner, first.data.token)).toEqual({ ok: true, data: null });
+    const fresh = await previewInvitation(owner, second.data.token);
+    expect(fresh.ok && fresh.data).toMatchObject({ email, role: "admin", status: "pending" });
+
+    // Another store's owner can't see it, and an admin can't re-create an admin invitation.
+    expect(await getPendingInvitation(otherOwner, actor("otherOwner", "owner", DEMO_STORE_ID), second.data.id)).toMatchObject({ ok: false });
+    expect(await createInvitation(admin, actor("admin", "admin"), { email, role: "admin" })).toMatchObject({ ok: false, code: "forbidden" });
   });
 });

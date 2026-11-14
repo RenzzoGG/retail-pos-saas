@@ -63,9 +63,20 @@ test("owner onboards, invites a cashier who accepts, then promotes them", async 
   await expect(ownerPage.getByRole("status").filter({ hasText: `Invitation sent to ${member.email}` })).toBeVisible();
   // Listed under "Pending invitations".
   await expect(ownerPage.getByRole("button", { name: `Revoke invitation for ${member.email}` })).toBeVisible();
+  const firstLink = await waitForLink(member.email, `join ${STORE}`, /\/invite\//);
+
+  // Resend: a new email with a new link (the first one stops working).
+  await ownerPage.getByRole("button", { name: `Resend invitation to ${member.email}` }).click();
+  await expect(ownerPage.getByRole("status").filter({ hasText: `Invitation sent again to ${member.email}` })).toBeVisible();
+  await expect(ownerPage.getByRole("button", { name: `Revoke invitation for ${member.email}` })).toHaveCount(1);
+  let inviteLink = firstLink;
+  for (let i = 0; i < 20 && inviteLink === firstLink; i++) {
+    inviteLink = await waitForLink(member.email, `join ${STORE}`, /\/invite\//);
+    if (inviteLink === firstLink) await new Promise((r) => setTimeout(r, 250));
+  }
+  expect(inviteLink).not.toBe(firstLink);
 
   // --------------------------------------------------------------- invitee
-  const inviteLink = await waitForLink(member.email, `join ${STORE}`, /\/invite\//);
   const memberContext = await browser.newContext();
   const memberPage = await memberContext.newPage();
 
