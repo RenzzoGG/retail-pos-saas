@@ -154,12 +154,28 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
     return () => clearTimeout(timer);
   }, [customerQuery]);
 
-  function scanCode(scanned: string) {
+  /**
+   * Exact barcode/SKU first (what a scanner sends). Typed text that isn't an
+   * exact code falls back to a name search: one match is added, several are
+   * listed to pick from. Long digit strings are treated as barcodes only, so
+   * an unknown scanned code never adds a product that merely contains it.
+   */
+  function scanCode(scanned: string, { byName = false } = {}) {
     searchSeq.current++;
     startLookup(async () => {
       const product = await lookupSaleProduct(scanned);
-      if (product) addProduct(product);
-      else setScanMessage({ tone: "error", text: `No product with barcode or SKU “${scanned}”.` });
+      if (product) return addProduct(product);
+      const matches = byName && !looksLikeBarcode(scanned) ? await searchSaleProducts(scanned) : [];
+      const [only] = matches;
+      if (matches.length === 1 && only) return addProduct(only);
+      if (matches.length > 1) {
+        // Show the list again (only if nothing new was typed meanwhile).
+        setCode((current) => (current === "" ? scanned : current));
+        setSuggestions(matches);
+        setScanMessage({ tone: "info", text: `${matches.length} products match “${scanned}”. Pick one.` });
+        return;
+      }
+      setScanMessage({ tone: "error", text: `No product with barcode or SKU “${scanned}”.` });
     });
   }
 
@@ -171,7 +187,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
     // Clear now: the scanner may already be typing the next code.
     setCode("");
     setSuggestions([]);
-    scanCode(scanned);
+    scanCode(scanned, { byName: true });
   }
 
   const backToScan = () => scanRef.current?.focus();
@@ -309,6 +325,11 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
             id="pos-scan"
             type="text"
             autoComplete="off"
+            // Phones: no auto-capital/autocorrect on names and SKUs; the Enter key reads "search".
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="search"
             autoFocus
             value={code}
             onChange={(e) => setCode(e.target.value)}
@@ -325,24 +346,24 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
             {isLooking ? "Looking up…" : (scanMessage?.text ?? "")}
           </p>
           {visibleSuggestions.length > 0 ? (
-            <ul aria-label="Product suggestions" className="divide-y divide-slate-200 rounded-md border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-700 dark:bg-slate-900">
+            <SuggestionList anchorRef={scanRef}>
               {visibleSuggestions.map((s) => (
                 <li key={s.id}>
                   <button
                     type="button"
                     onClick={() => addProduct(s, true)}
-                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:hover:bg-slate-800"
+                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:hover:bg-slate-800"
                   >
-                    <span>
+                    <span className="min-w-0">
                       <span className="font-medium">{s.name}</span> <span className="font-mono text-xs text-slate-500">{s.sku}</span>
                     </span>
-                    <span className="text-sm tabular-nums">
-                      {formatMoney(s.price, currency)} <span className="text-xs text-slate-500">· stock {s.stock}</span>
+                    <span className="shrink-0 text-right text-sm whitespace-nowrap tabular-nums">
+                      {formatMoney(s.price, currency)} <span className="block text-xs text-slate-500">stock {s.stock}</span>
                     </span>
                   </button>
                 </li>
               ))}
-            </ul>
+            </SuggestionList>
           ) : null}
         </div>
 
@@ -578,7 +599,7 @@ function Terminal({ initial, ...settings }: PosSettings & { initial: SavedState 
       <ShortcutBar />
 
       {/* Tablets/phones: the total and the Charge button always in reach. */}
-      <div className="fixed inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:hidden dark:border-slate-800 dark:bg-slate-900/95">
+      <div data-pos-bottom-bar className="fixed inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 border-t border-slate-200 bg-white/95 p-3 backdrop-blur lg:hidden dark:border-slate-800 dark:bg-slate-900/95">
         <span className="text-lg font-semibold tabular-nums">
           <span className="sr-only">Total </span>
           {money(totals.totalCents)}
@@ -693,6 +714,62 @@ function DiscountInput({
         <option value="percent">%</option>
       </select>
     </div>
+  );
+}
+
+/** 6+ digits only: a scanned barcode, never searched by name. */
+function looksLikeBarcode(text: string): boolean {
+  return /^\d{6,}$/.test(text);
+}
+
+/**
+ * Product matches under the scan field. On a phone the on-screen keyboard
+ * covers the bottom of the page (the visual viewport shrinks): when the list
+ * appears, scroll so the field sits at the top of what is visible, and cap the
+ * list height to the visible area (it scrolls inside), so no match ends up
+ * hidden behind the keyboard or off screen.
+ */
+function SuggestionList({ anchorRef, children }: { anchorRef: React.RefObject<HTMLInputElement | null>; children: React.ReactNode }) {
+  const listRef = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    // The fixed total/Charge bar (phones) also covers the bottom of the page.
+    const visibleBottom = () => {
+      const bottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      const bar = document.querySelector("[data-pos-bottom-bar]")?.getBoundingClientRect();
+      return bar && bar.height > 0 && bar.top < bottom ? bar.top : bottom;
+    };
+    const visibleTop = () => (vv ? vv.offsetTop : 0);
+    function fit() {
+      const list = listRef.current;
+      if (!list) return;
+      const room = visibleBottom() - list.getBoundingClientRect().top - 8;
+      list.style.maxHeight = `${Math.max(room, 96)}px`;
+    }
+    // Room for fewer than ~3 matches: bring the field to the top of the visible area.
+    const list = listRef.current;
+    const anchor = anchorRef.current;
+    if (list && anchor && visibleBottom() - list.getBoundingClientRect().top < 160) {
+      window.scrollBy({ top: anchor.getBoundingClientRect().top - visibleTop() - 8 });
+    }
+    fit();
+    vv?.addEventListener("resize", fit);
+    vv?.addEventListener("scroll", fit);
+    window.addEventListener("scroll", fit, { passive: true });
+    return () => {
+      vv?.removeEventListener("resize", fit);
+      vv?.removeEventListener("scroll", fit);
+      window.removeEventListener("scroll", fit);
+    };
+  }, [anchorRef]);
+  return (
+    <ul
+      ref={listRef}
+      aria-label="Product suggestions"
+      className="divide-y divide-slate-200 overflow-y-auto overscroll-contain rounded-md border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-700 dark:bg-slate-900"
+    >
+      {children}
+    </ul>
   );
 }
 

@@ -109,3 +109,57 @@ test("keyboard shortcut hints are hidden on a touch phone", async ({ page }) => 
   // Accessible name (hidden <kbd> excluded), not the raw label text.
   await expect(page.getByRole("searchbox", { name: "Customer (optional)", exact: true })).toBeVisible();
 });
+
+test("search field: Enter with a name adds the only match or lists several; scanner codes unchanged", async ({ page }) => {
+  await openPosAsCashier(page);
+  const scan = page.getByLabel(/Scan or search/);
+  // No auto-capitals, autocorrect or spellcheck on a phone; the Enter key reads "search".
+  await expect(scan).toHaveAttribute("autocapitalize", "off");
+  await expect(scan).toHaveAttribute("autocorrect", "off");
+  await expect(scan).toHaveAttribute("spellcheck", "false");
+  await expect(scan).toHaveAttribute("enterkeyhint", "search");
+
+  // One product matches "speaker": added straight away.
+  await scan.fill("speaker");
+  await scan.press("Enter");
+  await expect(page.getByTestId("cart-line-AUD-SPK-MINI")).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "No product" })).toHaveCount(0);
+
+  // Several match "Cable": the list is shown instead of an error, and a tap adds one.
+  await scan.fill("Cable");
+  await scan.press("Enter");
+  const list = page.getByRole("list", { name: "Product suggestions" });
+  await expect(list).toBeVisible();
+  expect(await list.getByRole("button").count()).toBeGreaterThan(1);
+  await expect(page.getByText(/products match “Cable”\. Pick one\./)).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "No product" })).toHaveCount(0);
+  await list.getByRole("button", { name: /HDMI 2\.1 Cable 2 m/ }).click();
+  await expect(page.getByTestId("cart-line-CBL-HDMI-2M")).toBeVisible();
+  await expect(list).toBeHidden();
+
+  // An unknown scanned barcode is still an error (never a name/SKU search).
+  await scan.fill("2000000000999");
+  await scan.press("Enter");
+  await expect(page.getByRole("alert").filter({ hasText: "No product with barcode or SKU “2000000000999”." })).toBeVisible();
+});
+
+test("name matches stay visible above an open on-screen keyboard", async ({ page }) => {
+  await openPosAsCashier(page);
+  // Android resizes the viewport for the keyboard (iOS shrinks the visual viewport,
+  // which the list also follows): 390 x 420 is a 390 x 844 phone with the keyboard open.
+  await page.setViewportSize({ width: 390, height: 420 });
+  const scan = page.getByLabel(/Scan or search/);
+  await scan.fill("Cable");
+  await scan.press("Enter");
+  const list = page.getByRole("list", { name: "Product suggestions" });
+  await expect(list).toBeVisible();
+  await expect(scan).toBeInViewport();
+  const box = (await list.boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  // Capped to the visible area above the fixed total/Charge bar; it scrolls inside.
+  const bar = (await page.locator("[data-pos-bottom-bar]").boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(bar.y);
+  await expect(list.getByRole("button").first()).toBeInViewport({ ratio: 1 });
+  expect(box.x + box.width).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: "test-results/pos-mobile-keyboard-open.png" });
+});
